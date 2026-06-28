@@ -318,6 +318,11 @@ class LexiconApp {
       }
     }
 
+    // After update loop, remove stale
+    for (const el of Array.from(scatter.children)) {
+      if (!nodes.has(el.dataset.term)) el.remove();
+    }
+
     this._updateAnchorVisuals();
   }
 
