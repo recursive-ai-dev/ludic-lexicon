@@ -193,19 +193,19 @@ body::before { content:"";position:fixed;inset:0;pointer-events:none;z-index:999
 <div id="app">
   <div id="header">
     <div id="header-left">
-      <button id="history-toggle" class="header-btn" title="Toggle history">◈</button>
+      <button id="history-toggle" class="header-btn" title="Toggle history" aria-label="Toggle history sidebar">◈</button>
       <h1>The Lexicon</h1>
     </div>
     <div id="header-right">combinatorial oracle</div>
   </div>
   <div id="main">
     <!-- History Sidebar -->
-    <div id="history-sidebar" class="collapsed">
+    <div id="history-sidebar" class="collapsed" role="complementary" aria-label="Reading History">
       <div id="history-header">
         <span>History</span>
-        <button id="history-close">✕</button>
+        <button id="history-close" aria-label="Close history">✕</button>
       </div>
-      <div id="history-list"></div>
+      <div id="history-list" aria-live="polite"></div>
     </div>
     <!-- Left: The Table -->
     <div id="table-panel">
@@ -215,7 +215,7 @@ body::before { content:"";position:fixed;inset:0;pointer-events:none;z-index:999
       </div>
       <div id="speak-hint">enter to speak &nbsp;·&nbsp; shift+enter for newline</div>
       <div id="vocab-zone">
-        <div id="vocab-scatter"></div>
+        <div id="vocab-scatter" role="region" aria-label="Vocabulary scatter plot"></div>
         <div id="vocab-empty">vocabulary will appear here</div>
       </div>
       <div id="graph-stats">
@@ -226,27 +226,27 @@ body::before { content:"";position:fixed;inset:0;pointer-events:none;z-index:999
       </div>
     </div>
     <!-- Right: The Reading -->
-    <div id="reading-panel">
+    <div id="reading-panel" role="main" aria-label="The Oracle's Reading">
       <div id="reading-scroll">
         <div id="reading-empty">
           <div class="dash">—</div>
           <div class="hint">speak first</div>
         </div>
-        <div id="reading-card">
-          <div class="cast-number" id="cast-number"></div>
-          <div id="depth-label"></div>
-          <div id="sigil-wrap"><svg id="sigil-svg" width="160" height="160" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg"></svg></div>
+        <article id="reading-card" aria-live="aggressive">
+          <div class="cast-number" id="cast-number" aria-label="Cast number"></div>
+          <div id="depth-label" aria-label="Complexity level"></div>
+          <div id="sigil-wrap" aria-hidden="true"><svg id="sigil-svg" width="160" height="160" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg"></svg></div>
           <div class="reading-section-label" id="sign-label" style="text-align:center"></div>
-          <div class="reading-sign" id="reading-sign"></div>
-          <div id="reading-body"></div>
+          <div class="reading-sign" id="reading-sign" aria-label="Sign"></div>
+          <div id="reading-body" aria-label="Body"></div>
           <hr class="reading-rule" id="reading-rule">
           <div class="reading-section-label" id="thread-label"></div>
-          <div class="reading-thread" id="reading-thread"></div>
+          <div class="reading-thread" id="reading-thread" aria-label="Thread"></div>
           <div id="seal-wrap">
-            <div class="reading-seal" id="reading-seal"></div>
+            <div class="reading-seal" id="reading-seal" aria-label="Seal"></div>
             <span class="seal-ornament" id="seal-ornament"></span>
           </div>
-        </div>
+        </article>
       </div>
       <div id="reading-footer">
         <button class="action-btn primary" id="cast-again-btn">Cast Again</button>
@@ -263,6 +263,23 @@ body::before { content:"";position:fixed;inset:0;pointer-events:none;z-index:999
 // THE LEXICON v2 — Combinatorial Oracle (Production Revision)
 // ═══════════════════════════════════════════════════════════
 
+/**
+ * Standard Production Logger
+ */
+class Logger {
+  static prefix = "[Lexicon]";
+  static info(msg, ...args) { console.log(`${this.prefix} INFO: ${msg}`, ...args); }
+  static warn(msg, ...args) { console.warn(`${this.prefix} WARN: ${msg}`, ...args); }
+  static error(msg, ...args) { console.error(`${this.prefix} ERROR: ${msg}`, ...args); }
+  static time(label) { console.time(`${this.prefix} ${label}`); }
+  static timeEnd(label) { console.timeEnd(`${this.prefix} ${label}`); }
+}
+
+/**
+ * FNV-1a 32-bit stable hash implementation.
+ * @param {string} str
+ * @returns {number} 32-bit unsigned integer
+ */
 function stableHash(str) {
   let h = 2166136261;
   for (let i = 0; i < str.length; i++) {
@@ -272,32 +289,45 @@ function stableHash(str) {
   return h >>> 0;
 }
 
+/**
+ * Deterministically pick an element from an array based on a seed.
+ */
 function pick(arr, seed) {
-  if (!arr || !arr.length) return "—";
-  let h = 0;
-  const s = String(seed);
-  for (let i = 0; i < s.length; i++) {
-    h = ((h << 5) - h) + s.charCodeAt(i);
-    h |= 0;
-  }
-  return arr[Math.abs(h) % arr.length];
+  if (!Array.isArray(arr) || arr.length === 0) return "—";
+  const h = stableHash(String(seed));
+  return arr[h % arr.length];
 }
 
-function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+/**
+ * Clamps a number between min and max.
+ */
+function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 
+/**
+ * Converts a number to Roman numerals (I - MMMCMXCIX).
+ * @param {number} n
+ * @returns {string}
+ */
 function toRoman(n) {
-  if (n <= 0 || n > 39) return String(n);
-  const vals = [10, 9, 5, 4, 1], syms = ["X", "IX", "V", "IV", "I"];
+  if (n <= 0 || n > 3999) return String(n);
+  const map = [
+    [1000, "M"], [900, "CM"], [500, "D"], [400, "CD"],
+    [100, "C"], [90, "XC"], [50, "L"], [40, "XL"],
+    [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"]
+  ];
   let r = "";
   let num = n;
-  for (let i = 0; i < vals.length; i++) {
-    while (num >= vals[i]) { r += syms[i]; num -= vals[i]; }
+  for (const [val, sym] of map) {
+    while (num >= val) { r += sym; num -= val; }
   }
   return r;
 }
 
 // ─── Semantic Engine ──────────────────────────────────────
 
+/**
+ * Core NLP engine for analyzing text and building a semantic graph.
+ */
 class SemanticEngine {
   constructor() {
     this.stopWords = new Set([
@@ -317,142 +347,242 @@ class SemanticEngine {
     this.totalTokens = 0;
   }
 
+  /**
+   * Cleans and tokenizes input text.
+   * @param {string} text
+   * @returns {string[]}
+   */
   tokenize(text) {
-    if (!text) return [];
+    if (!text || typeof text !== "string") return [];
+
+    // Normalize and lower case
     let p = text.toLowerCase().normalize("NFC");
-    const C = {
+
+    // Expansion of common contractions
+    const contractions = {
       "don't": "do not", "doesn't": "does not", "didn't": "did not",
       "won't": "will not", "can't": "cannot", "isn't": "is not",
       "i'm": "i am", "you're": "you are", "it's": "it is",
       "they're": "they are", "i've": "i have", "i'll": "i will",
-      "let's": "let us", "that's": "that is", "there's": "there is"
+      "let's": "let us", "that's": "that is", "there's": "there is",
+      "wouldn't": "would not", "couldn't": "could not", "shouldn't": "should not"
     };
-    for (const [c, e] of Object.entries(C)) {
-      const esc = c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      p = p.replace(new RegExp('\\b' + esc + '\\b', 'gi'), e);
+
+    for (const [c, e] of Object.entries(contractions)) {
+      const esc = c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      p = p.replace(new RegExp("\\b" + esc + "\\b", "gi"), e);
     }
-    p = p.replace(/[^a-z0-9\s'-]/g, " ").replace(/(?<!\w)[-']+|[-'](?!\w)/g, " ");
-    return p.split(/\s+/).filter(w => w.length > 1 && !this.stopWords.has(w));
+
+    // Remove punctuation except for hyphens inside words
+    p = p.replace(/[^\w\s-]/g, " ")
+         .replace(/(?<!\w)-+|-+(?!\w)/g, " "); // Remove hyphens not surrounded by alphanumeric chars
+
+    return p.split(/\s+/)
+      .filter(w => w.length > 1 && !this.stopWords.has(w));
   }
 
+  /**
+   * Adds text to the semantic graph.
+   * @param {string} text
+   */
   addText(text) {
     const toks = this.tokenize(text);
     if (!toks.length) return;
+
+    Logger.info(`Adding document with ${toks.length} tokens.`);
     this.documents++;
     this.totalTokens += toks.length;
+
     const uniq = new Set(toks);
     for (const w of uniq) this.docFreq.set(w, (this.docFreq.get(w) || 0) + 1);
+
     for (const w of toks) {
-      if (!this.graph.has(w)) this.graph.set(w, { frequency: 0, neighbors: new Map(), idf: 0 });
+      if (!this.graph.has(w)) {
+        this.graph.set(w, { frequency: 0, neighbors: new Map(), idf: 0 });
+      }
       this.graph.get(w).frequency++;
     }
-    const W = 4;
+
+    const windowSize = 4;
     for (let i = 0; i < toks.length; i++) {
-      const nd = this.graph.get(toks[i]);
-      const s = Math.max(0, i - W), e = Math.min(toks.length - 1, i + W);
-      for (let j = s; j <= e; j++) {
+      const node = this.graph.get(toks[i]);
+      const start = Math.max(0, i - windowSize);
+      const end = Math.min(toks.length - 1, i + windowSize);
+
+      for (let j = start; j <= end; j++) {
         if (i === j) continue;
-        const nb = toks[j], wt = 1 / Math.abs(i - j);
-        nd.neighbors.set(nb, (nd.neighbors.get(nb) || 0) + wt);
+        const neighbor = toks[j];
+        const weight = 1 / Math.abs(i - j);
+        node.neighbors.set(neighbor, (node.neighbors.get(neighbor) || 0) + weight);
       }
     }
+
+    // Update IDF for all nodes
     for (const [w, nd] of this.graph) {
       nd.idf = Math.log(this.documents / (this.docFreq.get(w) || 1));
     }
   }
 
+  /**
+   * Computes PageRank-style scores for terms in the graph.
+   */
   textRank(damping = 0.85, iterations = 30, convergence = 0.0001) {
     const nodes = Array.from(this.graph.keys());
     if (!nodes.length) return [];
 
-    // Precompute out-weights to avoid O(degree²) inner loops
+    Logger.time("TextRank");
+
     const outWeights = new Map();
     for (const node of nodes) {
-      const nnd = this.graph.get(node);
-      outWeights.set(node, Array.from(nnd.neighbors.values()).reduce((a, b) => a + b, 0));
+      const nd = this.graph.get(node);
+      let sum = 0;
+      for (const wt of nd.neighbors.values()) sum += wt;
+      outWeights.set(node, sum);
     }
 
-    const sc = new Map();
-    for (const n of nodes) sc.set(n, 1);
+    const scores = new Map();
+    for (const n of nodes) scores.set(n, 1.0);
 
     for (let it = 0; it < iterations; it++) {
-      let maxD = 0;
-      const ns = new Map();
+      let maxDelta = 0;
+      const nextScores = new Map();
+
       for (const node of nodes) {
         const nd = this.graph.get(node);
-        let sum = 0;
+        let incomingSum = 0;
+
         for (const [nb, wt] of nd.neighbors) {
           const out = outWeights.get(nb) || 0;
-          if (out > 0) sum += (wt / out) * (sc.get(nb) || 0);
+          if (out > 0) {
+            incomingSum += (wt / out) * (scores.get(nb) || 0);
+          }
         }
-        const s = (1 - damping) + damping * sum;
-        ns.set(node, s);
-        maxD = Math.max(maxD, Math.abs(s - (sc.get(node) || 0)));
+
+        const newScore = (1 - damping) + damping * incomingSum;
+        nextScores.set(node, newScore);
+        maxDelta = Math.max(maxDelta, Math.abs(newScore - (scores.get(node) || 0)));
       }
-      for (const [k, v] of ns) sc.set(k, v);
-      if (maxD < convergence) break;
+
+      for (const [k, v] of nextScores) scores.set(k, v);
+      if (maxDelta < convergence) break;
     }
 
-    return Array.from(sc.entries())
+    Logger.timeEnd("TextRank");
+
+    return Array.from(scores.entries())
       .map(([word, score]) => {
         const nd = this.graph.get(word);
-        return { word, score, frequency: nd.frequency, tfidf: nd.frequency * nd.idf };
+        return {
+          word,
+          score,
+          frequency: nd.frequency,
+          tfidf: nd.frequency * nd.idf
+        };
       })
       .sort((a, b) => b.score - a.score);
   }
 
+  /**
+   * Detects communities using label propagation.
+   */
   getClusters(iterations = 12) {
     const nodes = Array.from(this.graph.keys());
     if (!nodes.length) return [];
+
+    Logger.time("Clustering");
+
     const labels = new Map();
     for (const n of nodes) labels.set(n, n);
+
+    // Deterministic seeded shuffle based on graph state
+    const seed = this.documents + "_" + this.totalTokens + "_" + this.graph.size;
+
     for (let it = 0; it < iterations; it++) {
       let changed = false;
-      const order = nodes.slice().sort(() => Math.random() - 0.5);
+
+      // Seeded shuffle of nodes for stability
+      const order = [...nodes].sort((a, b) => {
+        const hA = stableHash(a + it + seed);
+        const hB = stableHash(b + it + seed);
+        return hA - hB;
+      });
+
       for (const node of order) {
         const nd = this.graph.get(node);
         if (!nd.neighbors.size) continue;
-        const lc = new Map();
+
+        const labelCounts = new Map();
         for (const [nb, wt] of nd.neighbors) {
           const l = labels.get(nb);
-          if (l) lc.set(l, (lc.get(l) || 0) + wt);
+          if (l) labelCounts.set(l, (labelCounts.get(l) || 0) + wt);
         }
-        let best = labels.get(node), bestC = -1;
-        for (const [l, c] of lc) {
-          if (c > bestC || (c === bestC && l < best)) { bestC = c; best = l; }
+
+        let bestLabel = labels.get(node);
+        let maxWeight = -1;
+
+        for (const [l, count] of labelCounts) {
+          if (count > maxWeight || (count === maxWeight && l < bestLabel)) {
+            maxWeight = count;
+            bestLabel = l;
+          }
         }
-        if (best !== labels.get(node)) { labels.set(node, best); changed = true; }
+
+        if (bestLabel !== labels.get(node)) {
+          labels.set(node, bestLabel);
+          changed = true;
+        }
       }
       if (!changed) break;
     }
-    const comm = new Map();
+
+    const communities = new Map();
     for (const [n, l] of labels) {
-      if (!comm.has(l)) comm.set(l, []);
-      comm.get(l).push(n);
+      if (!communities.has(l)) communities.set(l, []);
+      communities.get(l).push(n);
     }
-    return Array.from(comm.values()).filter(c => c.length > 1).sort((a, b) => b.length - a.length);
+
+    Logger.timeEnd("Clustering");
+
+    return Array.from(communities.values())
+      .filter(c => c.length > 1)
+      .sort((a, b) => b.length - a.length);
   }
 
+  /**
+   * Computes cosine similarity between two words in the graph.
+   */
   semanticSimilarity(w1, w2) {
-    const n1 = this.graph.get(w1), n2 = this.graph.get(w2);
+    const n1 = this.graph.get(w1);
+    const n2 = this.graph.get(w2);
     if (!n1 || !n2) return 0;
-    const wt = (nd, nb) => {
-      const w = nd.neighbors.get(nb) || 0, idf = this.graph.get(nb)?.idf || 1;
-      return w * idf;
+
+    const getWeight = (nd, nb) => {
+      const edgeWeight = nd.neighbors.get(nb) || 0;
+      const idf = this.graph.get(nb)?.idf || 1;
+      return edgeWeight * idf;
     };
-    let dot = 0, m1 = 0, m2 = 0;
+
+    let dotProduct = 0;
+    let mag1 = 0;
+    let mag2 = 0;
+
     for (const [nb] of n1.neighbors) {
-      const w = wt(n1, nb);
-      m1 += w * w;
+      const w = getWeight(n1, nb);
+      mag1 += w * w;
     }
+
     for (const [nb] of n2.neighbors) {
-      const w = wt(n2, nb);
-      m2 += w * w;
+      const w = getWeight(n2, nb);
+      mag2 += w * w;
     }
+
     for (const [nb] of n1.neighbors) {
-      if (n2.neighbors.has(nb)) dot += wt(n1, nb) * wt(n2, nb);
+      if (n2.neighbors.has(nb)) {
+        dotProduct += getWeight(n1, nb) * getWeight(n2, nb);
+      }
     }
-    return (m1 && m2) ? dot / (Math.sqrt(m1) * Math.sqrt(m2)) : 0;
+
+    return (mag1 && mag2) ? dotProduct / (Math.sqrt(mag1) * Math.sqrt(mag2)) : 0;
   }
 
   getTopTerms(n = 8) {
@@ -467,40 +597,124 @@ class SemanticEngine {
 
 // ─── Lexicon Renderer ─────────────────────────────────────
 
+/**
+ * Orchestrates the generation of combinatorial readings.
+ */
 class LexiconRenderer {
   constructor() {
     this.castCount = 0;
-    this.verbs = ["bleeds","sinks","pulls","tears","holds","burns","fades","drifts","breaks","turns","settles","presses","opens","closes","falls","rises","twists","stills","carries","echoes","bends","waits","watches","keeps","finds","loses","marks","folds","runs","stays","returns","shifts","spreads","dissolves","empties","gathers","follows"];
-    this.preps = ["through","into","under","over","beneath","against","toward","beyond","within","around","beside","before","after","between","without","despite","past","inside"];
-    this.temporals = ["before","after","when","until","since","as though","while","once","wherever"];
-    this.abstracts = ["absence","longing","dread","weight","void","gravity","entropy","inertia","decay","erosion","friction","resistance","tension","dissolution","cessation","rupture","breach","accretion","collapse","drift","remainder","pressure","static","threshold"];
-    this.sounds    = ["static","drip","hum","crack","whisper","echo","feedback","rattle","hiss","thrum","groan","creak","sigh","wail","drone","resonance","silence","white noise"];
-    this.sensations= ["tremor","vertigo","chill","numbness","tension","weight","pressure","derealization","tinnitus","paresthesia","pallor","spasm","drag"];
-    this.timeWords = ["dusk","midnight","twilight","3 AM","closing time","the interregnum","the liminal","the gloaming","the delay","the ellipsis","the comma","the witching hour","the blue hour","an eternity"];
-    this.lore = ["the city forgot its own name decades ago","every street leads back to where you started","the rain here never quite reaches the ground","there used to be more color, once","the clocks all stopped at different times","the old district doesn't exist on any map","the shadows here have a different weight","the maps are redrawn each night and no one admits to it","there are stairs that go down further than the building is tall","you can leave the city but it doesn't always let you arrive elsewhere","the streetlights turn on when they hear you coming","the wind carries conversations that ended long ago","the city dreams and you are a small willing part of the dream","your reflection arrives a moment after you do","somewhere a phone has been ringing since before you were born"];
-    this.loops = ["but what happened to the others?","and yet the lights still flicker","someone is watching from the upper floors","but the pattern doesn't quite fit","yet footsteps echo where no one walks","but why does the echo arrive before the sound?","who is left to read these signs?","yet the map keeps changing when I look away","and the numbers on the doors are wrong","but the reflection is still standing there","and the radio plays songs from next week"];
+    this.verbs = [
+      "bleeds","sinks","pulls","tears","holds","burns","fades","drifts","breaks","turns",
+      "settles","presses","opens","closes","falls","rises","twists","stills","carries",
+      "echoes","bends","waits","watches","keeps","finds","loses","marks","folds","runs",
+      "stays","returns","shifts","spreads","dissolves","empties","gathers","follows",
+      "unravels","ossifies","vibrates","calcifies","radiates","glimmers","shudders",
+      "suffocates","breathes","whispers","screams","devours","nourishes","erases",
+      "writes","forgets","remembers","hides","seeks"
+    ];
+    this.preps = [
+      "through","into","under","over","beneath","against","toward","beyond","within",
+      "around","beside","before","after","between","without","despite","past","inside",
+      "across","atop","amidst","alongside"
+    ];
+    this.temporals = [
+      "before","after","when","until","since","as though","while","once","wherever",
+      "whenever","until the end of","long before"
+    ];
+    this.abstracts = [
+      "absence","longing","dread","weight","void","gravity","entropy","inertia","decay",
+      "erosion","friction","resistance","tension","dissolution","cessation","rupture",
+      "breach","accretion","collapse","drift","remainder","pressure","static","threshold",
+      "stasis","vertigo","parallax","resonance","interference","transparency","opacity",
+      "silence","feedback","distortion","symmetry","fracture","membrane","catalyst",
+      "vacuum","orbit","velocity","anchor","transience"
+    ];
+    this.sounds = [
+      "static","drip","hum","crack","whisper","echo","feedback","rattle","hiss","thrum",
+      "groan","creak","sigh","wail","drone","resonance","silence","white noise",
+      "reverberation","glitch","interference","pulse"
+    ];
+    this.sensations = [
+      "tremor","vertigo","chill","numbness","tension","weight","pressure","derealization",
+      "tinnitus","paresthesia","pallor","spasm","drag","asphyxia","shiver","electric",
+      "cold","heat","nausea"
+    ];
+    this.timeWords = [
+      "dusk","midnight","twilight","3 AM","closing time","the interregnum","the liminal",
+      "the gloaming","the delay","the ellipsis","the comma","the witching hour",
+      "the blue hour","an eternity","the last second","the deep night","the morning after"
+    ];
+    this.lore = [
+      "the city forgot its own name decades ago",
+      "every street leads back to where you started",
+      "the rain here never quite reaches the ground",
+      "there used to be more color, once",
+      "the clocks all stopped at different times",
+      "the old district doesn't exist on any map",
+      "the shadows here have a different weight",
+      "the maps are redrawn each night and no one admits to it",
+      "there are stairs that go down further than the building is tall",
+      "you can leave the city but it doesn't always let you arrive elsewhere",
+      "the streetlights turn on when they hear you coming",
+      "the wind carries conversations that ended long ago",
+      "the city dreams and you are a small willing part of the dream",
+      "your reflection arrives a moment after you do",
+      "somewhere a phone has been ringing since before you were born",
+      "the walls have grown thick with the weight of secrets",
+      "no one remembers who built the spire",
+      "the birds here only sing at midnight",
+      "the fog has been here as long as the statues"
+    ];
+    this.loops = [
+      "but what happened to the others?",
+      "and yet the lights still flicker",
+      "someone is watching from the upper floors",
+      "but the pattern doesn't quite fit",
+      "yet footsteps echo where no one walks",
+      "but why does the echo arrive before the sound?",
+      "who is left to read these signs?",
+      "yet the map keeps changing when I look away",
+      "and the numbers on the doors are wrong",
+      "but the reflection is still standing there",
+      "and the radio plays songs from next week",
+      "but the door was locked from the outside",
+      "yet the ink is still wet"
+    ];
 
     this.formulas = [
-      (a, b, e, s) => a + " " + pick(this.verbs, s+"v0") + " " + pick(this.preps, s+"p0") + " " + b,
-      (a, b, e, s) => "the " + a + " of " + b,
-      (a, b, e, s) => a + " — " + pick(this.abstracts, s+"ab0") + " — " + b,
-      (a, b, e, s) => b + " " + pick(this.temporals, s+"t0") + " " + a + " " + pick(this.verbs, s+"v1"),
-      (a, b, e, s) => "what " + a + " " + pick(this.verbs, s+"v2") + ": " + b,
-      (a, b, e, s) => pick(this.sounds, s+"sn0") + " — " + a + " " + pick(this.preps, s+"p1") + " " + b,
-      (a, b, e, s) => a + " " + pick(this.sensations, s+"se0") + ", " + b + " " + pick(this.verbs, s+"v3"),
-      (a, b, e, s) => b + " and " + a + " " + pick(this.verbs, s+"v4"),
-      (a, b, e, s) => a + " " + pick(this.verbs, s+"v5") + " when " + pick(this.lore, s+"lo0"),
-      (a, b, e, s) => pick(this.abstracts, s+"ab1") + ": " + a + " / " + b,
-      (a, b, e, s) => a + " " + pick(this.preps, s+"p2") + " " + b + " — " + pick(this.abstracts, s+"ab2"),
-      (a, b, e, s) => "between " + a + " and " + b + ", " + pick(this.sounds, s+"sn1"),
+      (a, b, e, s) => `${a} ${pick(this.verbs, s + "v0")} ${pick(this.preps, s + "p0")} ${b}`,
+      (a, b, e, s) => `the ${a} of ${b}`,
+      (a, b, e, s) => `${a} — ${pick(this.abstracts, s + "ab0")} — ${b}`,
+      (a, b, e, s) => `${b} ${pick(this.temporals, s + "t0")} ${a} ${pick(this.verbs, s + "v1")}`,
+      (a, b, e, s) => `what ${a} ${pick(this.verbs, s + "v2")}: ${b}`,
+      (a, b, e, s) => `${pick(this.sounds, s + "sn0")} — ${a} ${pick(this.preps, s + "p1")} ${b}`,
+      (a, b, e, s) => `${a} ${pick(this.sensations, s + "se0")}, ${b} ${pick(this.verbs, s + "v3")}`,
+      (a, b, e, s) => `${b} and ${a} ${pick(this.verbs, s + "v4")}`,
+      (a, b, e, s) => `${a} ${pick(this.verbs, s + "v5")} when ${pick(this.lore, s + "lo0")}`,
+      (a, b, e, s) => `${pick(this.abstracts, s + "ab1")}: ${a} / ${b}`,
+      (a, b, e, s) => `${a} ${pick(this.preps, s + "p2")} ${b} — ${pick(this.abstracts, s + "ab2")}`,
+      (a, b, e, s) => `between ${a} and ${b}, ${pick(this.sounds, s + "sn1")}`,
     ];
   }
 
+  /**
+   * Applies a randomly selected formula to two terms.
+   */
   _formula(fIdx, a, b, seed) {
     const f = this.formulas[Math.abs(fIdx) % this.formulas.length];
-    try { return f(a, b, null, seed); } catch (_) { return a + " — " + b; }
+    try {
+      return f(a || "—", b || "—", null, seed);
+    } catch (err) {
+      Logger.error("Formula execution failed", err);
+      return (a || "—") + " — " + (b || "—");
+    }
   }
 
+  /**
+   * Generates a complete reading from the current engine state.
+   * @param {SemanticEngine} engine
+   * @param {string|null} anchor
+   */
   cast(engine, anchor = null) {
     this.castCount++;
     const N = this.castCount;
@@ -686,62 +900,85 @@ function buildSigil(ranked, clusters, engine) {
 
 // ─── Reading Animator ─────────────────────────────────────
 
+/**
+ * Global manager for animation timeouts to prevent race conditions.
+ */
+class AnimationManager {
+  static timeouts = [];
+
+  static add(fn, delay) {
+    const id = setTimeout(fn, delay);
+    this.timeouts.push(id);
+    return id;
+  }
+
+  static clear() {
+    this.timeouts.forEach(id => clearTimeout(id));
+    this.timeouts = [];
+  }
+}
+
+/**
+ * Animates the appearance of a new reading.
+ * @param {Object} reading
+ */
 function animateReading(reading) {
+  AnimationManager.clear();
+
   const BASE_DELAY  = 0.5;
   const LINE_STRIDE = 0.22;
 
   const resetAnim = (id, delay) => {
     const el = document.getElementById(id);
     if (!el) return;
-    el.style.animation = 'none';
-    el.style.animationDelay = '';
+    el.style.animation = "none";
+    el.style.animationDelay = "";
     void el.offsetHeight;
-    el.style.animation = '';
-    if (delay !== undefined) el.style.animationDelay = delay + 's';
+    el.style.animation = "";
+    if (delay !== undefined) el.style.animationDelay = delay + "s";
   };
 
-  resetAnim('cast-number', 0.1);
-  resetAnim('depth-label', 0.15);
-  resetAnim('sigil-wrap', 0.25);
+  resetAnim("cast-number", 0.1);
+  resetAnim("depth-label", 0.15);
+  resetAnim("sigil-wrap", 0.25);
+  resetAnim("reading-sign", 0.45);
 
-  resetAnim('reading-sign', 0.45);
-
-  document.getElementById('sign-label').textContent = 'sign';
-  document.getElementById('sign-label').style.opacity = '0';
-  setTimeout(() => {
-    const lbl = document.getElementById('sign-label');
-    lbl.style.transition = 'opacity 0.5s';
-    lbl.style.opacity = '0.45';
+  const signLabel = document.getElementById("sign-label");
+  signLabel.textContent = "sign";
+  signLabel.style.opacity = "0";
+  AnimationManager.add(() => {
+    signLabel.style.transition = "opacity 0.5s";
+    signLabel.style.opacity = "0.45";
   }, 450);
 
-  const bodyEl = document.getElementById('reading-body');
-  bodyEl.innerHTML = '';
+  const bodyEl = document.getElementById("reading-body");
+  bodyEl.textContent = ""; // Clear using textContent
   reading.body.forEach((line, i) => {
-    const el = document.createElement('div');
-    el.className = 'body-line';
+    const el = document.createElement("div");
+    el.className = "body-line";
     el.textContent = line;
     const delay = (BASE_DELAY + i * LINE_STRIDE).toFixed(2);
-    el.style.animationDelay = delay + 's';
+    el.style.animationDelay = delay + "s";
     bodyEl.appendChild(el);
   });
 
   const ruleDelay  = (BASE_DELAY + reading.body.length * LINE_STRIDE + 0.15).toFixed(2);
   const threadDelay = (parseFloat(ruleDelay) + 0.2).toFixed(2);
 
-  resetAnim('reading-rule', ruleDelay);
-  resetAnim('reading-thread', threadDelay);
+  resetAnim("reading-rule", ruleDelay);
+  resetAnim("reading-thread", threadDelay);
 
-  document.getElementById('thread-label').textContent = 'thread';
-  document.getElementById('thread-label').style.opacity = '0';
-  setTimeout(() => {
-    const lbl = document.getElementById('thread-label');
-    lbl.style.transition = 'opacity 0.5s';
-    lbl.style.opacity = '0.45';
+  const threadLabel = document.getElementById("thread-label");
+  threadLabel.textContent = "thread";
+  threadLabel.style.opacity = "0";
+  AnimationManager.add(() => {
+    threadLabel.style.transition = "opacity 0.5s";
+    threadLabel.style.opacity = "0.45";
   }, parseFloat(threadDelay) * 1000);
 
   const sealDelay = (parseFloat(threadDelay) + 0.5).toFixed(2);
-  resetAnim('seal-wrap', sealDelay);
-  document.getElementById('seal-ornament').textContent = '◈';
+  resetAnim("seal-wrap", sealDelay);
+  document.getElementById("seal-ornament").textContent = "◈";
 }
 
 // ─── Main Application ─────────────────────────────────────
@@ -770,6 +1007,7 @@ class LexiconApp {
     this.inputEl.addEventListener("keydown", e => {
       if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); this._speak(); }
     });
+    this.inputEl.addEventListener("input", () => this._handleInput());
     this.castBtn.addEventListener("click", () => this._cast());
     document.getElementById("cast-again-btn").addEventListener("click", () => this._cast());
     document.getElementById("copy-btn").addEventListener("click", () => this._copy());
@@ -793,9 +1031,15 @@ class LexiconApp {
     if (!text) return;
     this.inputEl.value = "";
     this.inputEl.style.height = "";
+    this.inputEl.rows = 3;
 
     this.engine.addText(text);
     this._refresh();
+  }
+
+  _handleInput() {
+    this.inputEl.style.height = "auto";
+    this.inputEl.style.height = (this.inputEl.scrollHeight) + "px";
   }
 
   _refresh() {
@@ -855,13 +1099,14 @@ class LexiconApp {
       scatter.appendChild(el);
     }
 
+    // Single-pass update for existing nodes
     for (const el of scatter.children) {
       const word = el.dataset.term;
       if (!word) continue;
-      const isTop = topSet.has(word);
-      el.style.color = isTop ? "var(--accent)" : "var(--dim)";
       const nd = nodes.get(word);
       if (nd) {
+        const isTop = topSet.has(word);
+        el.style.color = isTop ? "var(--accent)" : "var(--dim)";
         const normFreq = nd.frequency / maxFreq;
         el.style.fontSize = (0.62 + normFreq * 0.33).toFixed(2) + "rem";
       }
@@ -871,33 +1116,31 @@ class LexiconApp {
   }
 
   _toggleAnchor(word) {
-    if (this.anchoredTerm === word) {
-      this.anchoredTerm = null;
-    } else {
-      this.anchoredTerm = word;
-    }
+    this.anchoredTerm = (this.anchoredTerm === word) ? null : word;
     this._updateAnchorVisuals();
   }
 
   _updateAnchorVisuals() {
     const scatter = document.getElementById("vocab-scatter");
     for (const el of scatter.children) {
-      el.classList.toggle("anchored", el.dataset.term === this.anchoredTerm);
+      const isAnchored = el.dataset.term === this.anchoredTerm;
+      el.classList.toggle("anchored", isAnchored);
+      el.setAttribute("aria-pressed", isAnchored);
     }
   }
 
   _cast() {
     if (this.engine.nodeCount < 4) return;
 
+    Logger.time("Cast");
     const reading = this.renderer.cast(this.engine, this.anchoredTerm);
+    Logger.timeEnd("Cast");
+
     if (!reading) return;
 
     this.lastReading = reading;
-
-    if (this.anchoredTerm) {
-      this.anchoredTerm = null;
-      this._updateAnchorVisuals();
-    }
+    this.anchoredTerm = null;
+    this._updateAnchorVisuals();
 
     document.getElementById("cast-number").textContent = "◈  " + toRoman(reading.castNumber) + "  ◈";
 
@@ -917,13 +1160,13 @@ class LexiconApp {
     this.readingCard.classList.add("visible");
     this.readingFooter.classList.add("visible");
 
+    // Force reflow for animation reset
     const card = document.getElementById("reading-card");
     card.style.display = "none";
     void card.offsetHeight;
     card.style.display = "";
 
     animateReading(reading);
-
     this._highlightVocab(reading);
 
     this.history.unshift({
@@ -932,32 +1175,33 @@ class LexiconApp {
       sign: reading.sign,
       reading: reading
     });
-    if (this.history.length > 5) this.history.pop();
+    if (this.history.length > 8) this.history.pop();
     this._renderHistory();
 
     document.getElementById("reading-scroll").scrollTop = 0;
   }
 
   _highlightVocab(reading) {
-    const allText = [reading.sign, ...reading.body, reading.thread, reading.seal].join(" ").toLowerCase();
+    const words = new Set([
+      ...this.engine.tokenize(reading.sign),
+      ...reading.body.flatMap(l => this.engine.tokenize(l)),
+      ...this.engine.tokenize(reading.thread),
+      ...this.engine.tokenize(reading.seal)
+    ]);
+
     const scatter = document.getElementById("vocab-scatter");
     for (const el of scatter.children) {
       const word = el.dataset.term;
-      if (!word) continue;
-      try {
-        const esc = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const re = new RegExp('\\b' + esc + '\\b');
-        if (re.test(allText)) {
-          el.classList.add("highlighted");
-          setTimeout(() => el.classList.remove("highlighted"), 1200);
-        }
-      } catch (_) {}
+      if (word && words.has(word)) {
+        el.classList.add("highlighted");
+        setTimeout(() => el.classList.remove("highlighted"), 1200);
+      }
     }
   }
 
   _renderHistory() {
     const list = document.getElementById("history-list");
-    list.innerHTML = "";
+    list.textContent = "";
     if (!this.history.length) {
       const empty = document.createElement("div");
       empty.className = "history-empty";
@@ -968,10 +1212,12 @@ class LexiconApp {
     this.history.forEach((entry, i) => {
       const item = document.createElement("div");
       item.className = "history-item";
+      item.setAttribute("role", "button");
+      item.setAttribute("tabindex", "0");
 
       const meta = document.createElement("div");
       meta.className = "history-meta";
-      const dateStr = entry.date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+      const dateStr = entry.date.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
       meta.textContent = `◈ ${toRoman(entry.castNumber)} · ${dateStr}`;
       item.appendChild(meta);
 
@@ -1007,6 +1253,7 @@ class LexiconApp {
 
       item.appendChild(full);
       item.addEventListener("click", () => full.classList.toggle("visible"));
+      item.addEventListener("keydown", e => { if (e.key === "Enter") full.classList.toggle("visible"); });
       list.appendChild(item);
     });
   }

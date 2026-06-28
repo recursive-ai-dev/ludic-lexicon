@@ -1,0 +1,399 @@
+        this.graph.set(w, { frequency: 0, neighbors: new Map(), idf: 0 });
+      }
+      this.graph.get(w).frequency++;
+    }
+
+    const windowSize = 4;
+    for (let i = 0; i < toks.length; i++) {
+      const node = this.graph.get(toks[i]);
+      const start = Math.max(0, i - windowSize);
+      const end = Math.min(toks.length - 1, i + windowSize);
+
+      for (let j = start; j <= end; j++) {
+        if (i === j) continue;
+        const neighbor = toks[j];
+        const weight = 1 / Math.abs(i - j);
+        node.neighbors.set(neighbor, (node.neighbors.get(neighbor) || 0) + weight);
+      }
+    }
+
+    // Update IDF for all nodes
+    for (const [w, nd] of this.graph) {
+      nd.idf = Math.log(this.documents / (this.docFreq.get(w) || 1));
+    }
+  }
+
+  /**
+   * Computes PageRank-style scores for terms in the graph.
+   */
+  textRank(damping = 0.85, iterations = 30, convergence = 0.0001) {
+    const nodes = Array.from(this.graph.keys());
+    if (!nodes.length) return [];
+
+    Logger.time("TextRank");
+
+    const outWeights = new Map();
+    for (const node of nodes) {
+      const nd = this.graph.get(node);
+      let sum = 0;
+      for (const wt of nd.neighbors.values()) sum += wt;
+      outWeights.set(node, sum);
+    }
+
+    const scores = new Map();
+    for (const n of nodes) scores.set(n, 1.0);
+
+    for (let it = 0; it < iterations; it++) {
+      let maxDelta = 0;
+      const nextScores = new Map();
+
+      for (const node of nodes) {
+        const nd = this.graph.get(node);
+        let incomingSum = 0;
+
+        for (const [nb, wt] of nd.neighbors) {
+          const out = outWeights.get(nb) || 0;
+          if (out > 0) {
+            incomingSum += (wt / out) * (scores.get(nb) || 0);
+          }
+        }
+
+        const newScore = (1 - damping) + damping * incomingSum;
+        nextScores.set(node, newScore);
+        maxDelta = Math.max(maxDelta, Math.abs(newScore - (scores.get(node) || 0)));
+      }
+
+      for (const [k, v] of nextScores) scores.set(k, v);
+      if (maxDelta < convergence) break;
+    }
+
+    Logger.timeEnd("TextRank");
+
+    return Array.from(scores.entries())
+      .map(([word, score]) => {
+        const nd = this.graph.get(word);
+        return {
+          word,
+          score,
+          frequency: nd.frequency,
+          tfidf: nd.frequency * nd.idf
+        };
+      })
+      .sort((a, b) => b.score - a.score);
+  }
+
+  /**
+   * Detects communities using label propagation.
+   */
+  getClusters(iterations = 12) {
+    const nodes = Array.from(this.graph.keys());
+    if (!nodes.length) return [];
+
+    Logger.time("Clustering");
+
+    const labels = new Map();
+    for (const n of nodes) labels.set(n, n);
+
+    // Deterministic seeded shuffle based on graph state
+    const seed = this.documents + "_" + this.totalTokens + "_" + this.graph.size;
+
+    for (let it = 0; it < iterations; it++) {
+      let changed = false;
+
+      // Seeded shuffle of nodes for stability
+      const order = [...nodes].sort((a, b) => {
+        const hA = stableHash(a + it + seed);
+        const hB = stableHash(b + it + seed);
+        return hA - hB;
+      });
+
+      for (const node of order) {
+        const nd = this.graph.get(node);
+        if (!nd.neighbors.size) continue;
+
+        const labelCounts = new Map();
+        for (const [nb, wt] of nd.neighbors) {
+          const l = labels.get(nb);
+          if (l) labelCounts.set(l, (labelCounts.get(l) || 0) + wt);
+        }
+
+        let bestLabel = labels.get(node);
+        let maxWeight = -1;
+
+        for (const [l, count] of labelCounts) {
+          if (count > maxWeight || (count === maxWeight && l < bestLabel)) {
+            maxWeight = count;
+            bestLabel = l;
+          }
+        }
+
+        if (bestLabel !== labels.get(node)) {
+          labels.set(node, bestLabel);
+          changed = true;
+        }
+      }
+      if (!changed) break;
+    }
+
+    const communities = new Map();
+    for (const [n, l] of labels) {
+      if (!communities.has(l)) communities.set(l, []);
+      communities.get(l).push(n);
+    }
+
+    Logger.timeEnd("Clustering");
+
+    return Array.from(communities.values())
+      .filter(c => c.length > 1)
+      .sort((a, b) => b.length - a.length);
+  }
+
+  /**
+   * Computes cosine similarity between two words in the graph.
+   */
+  semanticSimilarity(w1, w2) {
+    const n1 = this.graph.get(w1);
+    const n2 = this.graph.get(w2);
+    if (!n1 || !n2) return 0;
+
+    const getWeight = (nd, nb) => {
+      const edgeWeight = nd.neighbors.get(nb) || 0;
+      const idf = this.graph.get(nb)?.idf || 1;
+      return edgeWeight * idf;
+    };
+
+    let dotProduct = 0;
+    let mag1 = 0;
+    let mag2 = 0;
+
+    for (const [nb] of n1.neighbors) {
+      const w = getWeight(n1, nb);
+      mag1 += w * w;
+    }
+
+    for (const [nb] of n2.neighbors) {
+      const w = getWeight(n2, nb);
+      mag2 += w * w;
+    }
+
+    for (const [nb] of n1.neighbors) {
+      if (n2.neighbors.has(nb)) {
+        dotProduct += getWeight(n1, nb) * getWeight(n2, nb);
+      }
+    }
+
+    return (mag1 && mag2) ? dotProduct / (Math.sqrt(mag1) * Math.sqrt(mag2)) : 0;
+  }
+
+  getTopTerms(n = 8) {
+    return Array.from(this.graph.entries())
+      .map(([w, nd]) => ({ word: w, frequency: nd.frequency, tfidf: nd.frequency * nd.idf }))
+      .sort((a, b) => b.tfidf - a.tfidf).slice(0, n);
+  }
+
+  getNode(w) { return this.graph.get(w); }
+  get nodeCount() { return this.graph.size; }
+}
+
+// ─── Lexicon Renderer ─────────────────────────────────────
+
+/**
+ * Orchestrates the generation of combinatorial readings.
+ */
+class LexiconRenderer {
+  constructor() {
+    this.castCount = 0;
+    this.verbs = [
+      "bleeds","sinks","pulls","tears","holds","burns","fades","drifts","breaks","turns",
+      "settles","presses","opens","closes","falls","rises","twists","stills","carries",
+      "echoes","bends","waits","watches","keeps","finds","loses","marks","folds","runs",
+      "stays","returns","shifts","spreads","dissolves","empties","gathers","follows",
+      "unravels","ossifies","vibrates","calcifies","radiates","glimmers","shudders",
+      "suffocates","breathes","whispers","screams","devours","nourishes","erases",
+      "writes","forgets","remembers","hides","seeks"
+    ];
+    this.preps = [
+      "through","into","under","over","beneath","against","toward","beyond","within",
+      "around","beside","before","after","between","without","despite","past","inside",
+      "across","atop","amidst","alongside"
+    ];
+    this.temporals = [
+      "before","after","when","until","since","as though","while","once","wherever",
+      "whenever","until the end of","long before"
+    ];
+    this.abstracts = [
+      "absence","longing","dread","weight","void","gravity","entropy","inertia","decay",
+      "erosion","friction","resistance","tension","dissolution","cessation","rupture",
+      "breach","accretion","collapse","drift","remainder","pressure","static","threshold",
+      "stasis","vertigo","parallax","resonance","interference","transparency","opacity",
+      "silence","feedback","distortion","symmetry","fracture","membrane","catalyst",
+      "vacuum","orbit","velocity","anchor","transience"
+    ];
+    this.sounds = [
+      "static","drip","hum","crack","whisper","echo","feedback","rattle","hiss","thrum",
+      "groan","creak","sigh","wail","drone","resonance","silence","white noise",
+      "reverberation","glitch","interference","pulse"
+    ];
+    this.sensations = [
+      "tremor","vertigo","chill","numbness","tension","weight","pressure","derealization",
+      "tinnitus","paresthesia","pallor","spasm","drag","asphyxia","shiver","electric",
+      "cold","heat","nausea"
+    ];
+    this.timeWords = [
+      "dusk","midnight","twilight","3 AM","closing time","the interregnum","the liminal",
+      "the gloaming","the delay","the ellipsis","the comma","the witching hour",
+      "the blue hour","an eternity","the last second","the deep night","the morning after"
+    ];
+    this.lore = [
+      "the city forgot its own name decades ago",
+      "every street leads back to where you started",
+      "the rain here never quite reaches the ground",
+      "there used to be more color, once",
+      "the clocks all stopped at different times",
+      "the old district doesn't exist on any map",
+      "the shadows here have a different weight",
+      "the maps are redrawn each night and no one admits to it",
+      "there are stairs that go down further than the building is tall",
+      "you can leave the city but it doesn't always let you arrive elsewhere",
+      "the streetlights turn on when they hear you coming",
+      "the wind carries conversations that ended long ago",
+      "the city dreams and you are a small willing part of the dream",
+      "your reflection arrives a moment after you do",
+      "somewhere a phone has been ringing since before you were born",
+      "the walls have grown thick with the weight of secrets",
+      "no one remembers who built the spire",
+      "the birds here only sing at midnight",
+      "the fog has been here as long as the statues"
+    ];
+    this.loops = [
+      "but what happened to the others?",
+      "and yet the lights still flicker",
+      "someone is watching from the upper floors",
+      "but the pattern doesn't quite fit",
+      "yet footsteps echo where no one walks",
+      "but why does the echo arrive before the sound?",
+      "who is left to read these signs?",
+      "yet the map keeps changing when I look away",
+      "and the numbers on the doors are wrong",
+      "but the reflection is still standing there",
+      "and the radio plays songs from next week",
+      "but the door was locked from the outside",
+      "yet the ink is still wet"
+    ];
+
+    this.formulas = [
+      (a, b, e, s) => `${a} ${pick(this.verbs, s + "v0")} ${pick(this.preps, s + "p0")} ${b}`,
+      (a, b, e, s) => `the ${a} of ${b}`,
+      (a, b, e, s) => `${a} — ${pick(this.abstracts, s + "ab0")} — ${b}`,
+      (a, b, e, s) => `${b} ${pick(this.temporals, s + "t0")} ${a} ${pick(this.verbs, s + "v1")}`,
+      (a, b, e, s) => `what ${a} ${pick(this.verbs, s + "v2")}: ${b}`,
+      (a, b, e, s) => `${pick(this.sounds, s + "sn0")} — ${a} ${pick(this.preps, s + "p1")} ${b}`,
+      (a, b, e, s) => `${a} ${pick(this.sensations, s + "se0")}, ${b} ${pick(this.verbs, s + "v3")}`,
+      (a, b, e, s) => `${b} and ${a} ${pick(this.verbs, s + "v4")}`,
+      (a, b, e, s) => `${a} ${pick(this.verbs, s + "v5")} when ${pick(this.lore, s + "lo0")}`,
+      (a, b, e, s) => `${pick(this.abstracts, s + "ab1")}: ${a} / ${b}`,
+      (a, b, e, s) => `${a} ${pick(this.preps, s + "p2")} ${b} — ${pick(this.abstracts, s + "ab2")}`,
+      (a, b, e, s) => `between ${a} and ${b}, ${pick(this.sounds, s + "sn1")}`,
+    ];
+  }
+
+  /**
+   * Applies a randomly selected formula to two terms.
+   */
+  _formula(fIdx, a, b, seed) {
+    const f = this.formulas[Math.abs(fIdx) % this.formulas.length];
+    try {
+      return f(a || "—", b || "—", null, seed);
+    } catch (err) {
+      Logger.error("Formula execution failed", err);
+      return (a || "—") + " — " + (b || "—");
+    }
+  }
+
+  /**
+   * Generates a complete reading from the current engine state.
+   * @param {SemanticEngine} engine
+   * @param {string|null} anchor
+   */
+  cast(engine, anchor = null) {
+    this.castCount++;
+    const N = this.castCount;
+    const seed = `C${N}_${engine.documents}_${engine.totalTokens}_${engine.nodeCount}_${anchor || ""}`;
+
+    const ranked = engine.textRank();
+    if (ranked.length < 3) return null;
+
+    const clusters = engine.getClusters(15);
+
+    // Axis: highest TextRank, or anchor if set
+    let axis = ranked[0].word;
+    if (anchor) axis = anchor;
+
+    // Bridge: among top-10, maximally connected to cluster heads
+    const clusterHeads = clusters.slice(0, 6).map(c => c[0]).filter(Boolean);
+    let bridge = ranked[1]?.word || axis;
+    let maxBridgeScore = -1;
+    for (const t of ranked.slice(0, Math.min(10, ranked.length))) {
+      if (t.word === axis) continue;
+      let score = 0;
+      for (const h of clusterHeads) {
+        if (h !== t.word) score += engine.semanticSimilarity(t.word, h);
+      }
+      if (score > maxBridgeScore) { maxBridgeScore = score; bridge = t.word; }
+    }
+    if (bridge === axis && ranked[1]) bridge = ranked[1].word;
+    if (bridge === axis) bridge = ranked.find(r => r.word !== axis)?.word || axis;
+
+    // Outlier: term in top-12 least similar to axis
+    let outlier = ranked[Math.min(ranked.length - 1, 5)].word;
+    let minSim = Infinity;
+    for (const t of ranked.slice(0, Math.min(12, ranked.length))) {
+      if (t.word === axis) continue;
+      const sim = engine.semanticSimilarity(axis, t.word);
+      if (sim < minSim) { minSim = sim; outlier = t.word; }
+    }
+    if (outlier === axis) outlier = ranked[ranked.length - 1]?.word || axis;
+
+    // Pool of user terms (unique, ordered by rank)
+    const pool = [];
+    const seen = new Set([axis, bridge, outlier]);
+    for (const r of ranked) {
+      if (!seen.has(r.word)) { pool.push(r.word); seen.add(r.word); }
+    }
+    const T = i => pool[i % Math.max(1, pool.length)] || ranked[i % ranked.length]?.word || axis;
+
+    const sign   = this._buildSign(axis, bridge, seed);
+    const body   = this._buildBody(ranked, clusters, axis, bridge, outlier, T, seed, engine.nodeCount);
+    const thread = this._buildThread(ranked, outlier, seed, engine.nodeCount);
+    const seal   = outlier;
+
+    return { castNumber: N, sign, body, thread, seal, axis, bridge, outlier, termCount: ranked.length, clusterCount: clusters.length, ranked, clusters, seed };
+  }
+
+  _buildSign(axis, bridge, seed) {
+    const forms = [
+      axis + " / " + bridge,
+      "the " + axis + " of " + bridge,
+      axis + " — " + bridge,
+      bridge + " " + pick(this.preps, seed + "sp") + " " + axis,
+      axis + " and " + bridge,
+      pick(this.sounds, seed + "ssn") + " — " + axis + " / " + bridge,
+    ];
+    return pick(forms, seed + "sign");
+  }
+
+  _buildBody(ranked, clusters, axis, bridge, outlier, T, seed, termCount) {
+    const usedFormulas = new Set();
+    const pickFormula = (key) => {
+      let h = stableHash(seed + key);
+      let idx = Math.abs(h) % this.formulas.length;
+      let attempts = 0;
+      while (usedFormulas.has(idx) && attempts < this.formulas.length) {
+        idx = (idx + 1) % this.formulas.length;
+        attempts++;
+      }
+      usedFormulas.add(idx);
+      return idx;
+    };
+
+    const lines = [];
