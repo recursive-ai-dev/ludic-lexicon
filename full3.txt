@@ -124,6 +124,8 @@ class AnimationManager {
  */
 function animateReading(reading) {
   AnimationManager.clear();
+  const liveRegion = document.getElementById("reading-live");
+  if (liveRegion) liveRegion.setAttribute("aria-busy", "true");
 
   const BASE_DELAY  = 0.5;
   const LINE_STRIDE = 0.22;
@@ -179,6 +181,10 @@ function animateReading(reading) {
   const sealDelay = (parseFloat(threadDelay) + 0.5).toFixed(2);
   resetAnim("seal-wrap", sealDelay);
   document.getElementById("seal-ornament").textContent = "◈";
+  if (liveRegion) {
+    liveRegion.setAttribute("aria-busy", "false");
+    liveRegion.textContent = `Reading ${toRoman(reading.castNumber)} generated. Sign: ${reading.sign}`;
+  }
 }
 
 // ─── Main Application ─────────────────────────────────────
