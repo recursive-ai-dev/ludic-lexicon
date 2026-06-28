@@ -3,9 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Lexicon</title>
+<title>The Lexicon | Combinatorial Oracle</title>
+<!--
+  THE LEXICON v2.1.0 — Production Build
+  A combinatorial oracle utilizing graph-based semantic analysis.
+-->
 <style>
-*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+/* CSS Reset and Variables */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
   --void: #060608;
@@ -16,202 +21,220 @@
   --dim: #45455a;
   --bright: #d4d4e8;
   --accent: #8a7ab0;
-  --accent-dim: rgba(138,122,176,0.18);
-  --accent-glow: rgba(138,122,176,0.08);
+  --accent-dim: rgba(138, 122, 176, 0.18);
+  --accent-glow: rgba(138, 122, 176, 0.08);
+  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
 }
 
-@keyframes fadeUp   { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-@keyframes fadeIn   { from{opacity:0} to{opacity:1} }
-@keyframes grain    { 0%,100%{transform:translate(0,0)} 25%{transform:translate(-1%,-1%)} 75%{transform:translate(1%,1%)} }
-@keyframes pulse    { 0%,100%{opacity:0.35} 50%{opacity:0.7} }
-@keyframes flicker  { 0%,100%{opacity:1} 48%{opacity:0.96} 50%{opacity:0.82} 52%{opacity:0.97} }
-@keyframes sealIn   { from{opacity:0;letter-spacing:0.6em} to{opacity:1;letter-spacing:0.35em} }
-@keyframes sigilIn  { from{opacity:0;transform:scale(0.88) rotate(-6deg)} to{opacity:1;transform:scale(1) rotate(0deg)} }
-@keyframes termAppear{ from{opacity:0;transform:scale(0.7)} to{opacity:1;transform:scale(1)} }
-@keyframes vocabPulse{ 0%{transform:scale(1);text-shadow:0 0 0 rgba(138,122,176,0);color:inherit} 40%{transform:scale(1.18);text-shadow:0 0 14px rgba(138,122,176,0.55);color:var(--accent)} 100%{transform:scale(1);text-shadow:0 0 0 rgba(138,122,176,0);color:inherit} }
+body {
+  background-color: var(--void);
+  color: var(--text);
+  font-family: var(--font-main);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
 
-html,body { width:100%;height:100%;overflow:hidden;background:var(--void);color:var(--text);font-family:'Garamond','Georgia',serif;font-size:16px;line-height:1.6; }
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--dim); }
 
-body::before { content:"";position:fixed;inset:0;pointer-events:none;z-index:9999;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");animation:grain 12s steps(8) infinite;opacity:0.9; }
+/* Layout */
+#app { display: flex; flex-direction: column; height: 100%; width: 100%; position: relative; }
 
-#app { display:flex;flex-direction:column;height:100%; }
+#header {
+  height: 3.5rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.25rem;
+  background: var(--void);
+  z-index: 10;
+  flex-shrink: 0;
+}
 
-/* Header */
-#header { display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1.5rem;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--deep); }
-#header h1 { font-family:'Consolas','Monaco',monospace;font-size:0.72rem;letter-spacing:0.25em;text-transform:uppercase;color:var(--dim);font-weight:normal; }
-#header-left { display:flex;align-items:center;gap:0.75rem; }
-#header-right { font-family:'Consolas','Monaco',monospace;font-size:0.62rem;color:var(--dim);letter-spacing:0.1em; }
-.header-btn { background:transparent;border:none;color:var(--dim);cursor:pointer;font-family:'Consolas','Monaco',monospace;font-size:0.72rem;letter-spacing:0.2em;transition:color 0.3s; }
-.header-btn:hover { color:var(--accent); }
+#header-left { display: flex; align-items: center; gap: 1rem; }
+h1 { font-size: 0.85rem; font-weight: 500; letter-spacing: 0.25em; text-transform: uppercase; color: var(--bright); }
+.header-btn {
+  background: transparent; border: 1px solid var(--border); color: var(--dim);
+  width: 2rem; height: 2rem; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.2s; font-size: 0.75rem;
+}
+.header-btn:hover { border-color: var(--accent); color: var(--accent); }
 
-/* Main layout */
-#main { flex:1;display:flex;overflow:hidden; }
+#header-right { font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.15em; color: var(--dim); text-transform: uppercase; }
 
-/* ─── HISTORY SIDEBAR ─── */
-#history-sidebar { width:220px;flex-shrink:0;border-right:1px solid var(--border);background:var(--deep);display:flex;flex-direction:column;overflow:hidden;transition:width 0.35s ease,opacity 0.35s ease, border-color 0.35s; }
-#history-sidebar.collapsed { width:0;opacity:0;border-right-color:transparent; }
-#history-header { padding:0.75rem 1rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-family:'Consolas','Monaco',monospace;font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--dim);flex-shrink:0; }
-#history-close { background:transparent;border:none;color:var(--dim);cursor:pointer;font-size:0.7rem;transition:color 0.2s; }
-#history-close:hover { color:var(--accent); }
-#history-list { flex:1;overflow-y:auto;padding:0.5rem; }
-.history-item { padding:0.6rem 0.5rem;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.2s; }
-.history-item:hover { background:var(--surface); }
-.history-meta { font-family:'Consolas','Monaco',monospace;font-size:0.55rem;color:var(--accent);opacity:0.6;margin-bottom:0.25rem; }
-.history-sign { font-family:'Garamond','Georgia',serif;font-size:0.8rem;color:var(--text);font-style:italic;opacity:0.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-.history-full { margin-top:0.5rem;padding:0.5rem;background:var(--void);border:1px solid var(--border);font-family:'Garamond','Georgia',serif;font-size:0.75rem;color:var(--dim);line-height:1.6;display:none; }
-.history-full.visible { display:block;animation:fadeIn 0.3s ease; }
-.history-full .h-line { margin-bottom:0.3rem; }
-.history-empty { padding:1rem 0.5rem;font-family:'Consolas','Monaco',monospace;font-size:0.6rem;color:var(--dim);opacity:0.4;text-align:center; }
+#main { display: flex; flex: 1; overflow: hidden; position: relative; }
 
-/* ─── LEFT: THE TABLE ─── */
-#table-panel { width:38%;display:flex;flex-direction:column;border-right:1px solid var(--border);background:var(--deep);flex-shrink:0; }
+/* Sidebar */
+#history-sidebar {
+  width: 280px; background: var(--void); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s;
+  overflow: hidden; z-index: 20;
+}
+#history-sidebar.collapsed { transform: translateX(-100%); width: 0; border-right: none; }
 
-#table-header { padding:1rem 1.5rem 0.5rem;font-family:'Consolas','Monaco',monospace;font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--dim); }
+#history-header {
+  padding: 1.25rem; border-bottom: 1px solid var(--border); display: flex;
+  justify-content: space-between; align-items: center; flex-shrink: 0;
+}
+#history-header span { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
+#history-close { background: none; border: none; color: var(--dim); cursor: pointer; padding: 4px; font-size: 0.8rem; transition: color 0.2s; }
+#history-close:hover { color: var(--accent); }
 
-/* Input area */
-#speak-zone { padding:0 1.25rem; }
+#history-list { flex: 1; overflow-y: auto; padding: 0.5rem; }
+.history-empty { padding: 2rem; text-align: center; font-size: 0.75rem; color: var(--dim); font-style: italic; }
+
+.history-item {
+  padding: 1rem; border: 1px solid transparent; border-radius: 4px; margin-bottom: 0.5rem;
+  cursor: pointer; transition: all 0.2s;
+}
+.history-item:hover { background: var(--surface); border-color: var(--border); }
+.history-meta { font-family: var(--font-mono); font-size: 0.55rem; color: var(--dim); margin-bottom: 0.4rem; letter-spacing: 0.05em; }
+.history-sign { font-size: 0.85rem; color: var(--accent); font-style: italic; }
+
+.history-full { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; margin-top: 0; }
+.history-full.visible { max-height: 500px; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px dashed var(--border); }
+.h-line { font-size: 0.75rem; color: var(--text); margin-bottom: 0.25rem; line-height: 1.5; }
+
+/* Left Panel: The Table */
+#table-panel { width: 38%; display: flex; flex-direction: column; background: var(--deep); border-right: 1px solid var(--border); position: relative; }
+
+#table-header { padding: 1.25rem; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); border-bottom: 1px solid var(--border); }
+
+#speak-zone { padding: 1.5rem; flex-shrink: 0; }
 #speak-input {
-  width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);
-  padding:0.75rem 1rem;font-family:'Garamond','Georgia',serif;font-size:1rem;
-  resize:none;height:4.5rem;outline:none;border-radius:0;
-  transition:border-color 0.3s ease;line-height:1.5;
+  width: 100%; background: var(--void); border: 1px solid var(--border); border-radius: 4px;
+  color: var(--bright); font-family: var(--font-main); font-size: 0.95rem; line-height: 1.6;
+  padding: 1rem; resize: none; transition: border-color 0.3s, box-shadow 0.3s;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
 }
-#speak-input:focus { border-color:var(--accent); }
-#speak-input::placeholder { color:var(--dim);font-style:italic;font-size:0.9rem; }
+#speak-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow), inset 0 2px 4px rgba(0,0,0,0.2); }
+#speak-hint { font-size: 0.65rem; color: var(--dim); padding: 0 1.5rem 1rem; margin-top: -0.5rem; text-align: right; letter-spacing: 0.02em; }
 
-#speak-hint { padding:0.35rem 1.25rem 0;font-family:'Consolas','Monaco',monospace;font-size:0.58rem;color:var(--dim);opacity:0.5;letter-spacing:0.05em; }
+#vocab-zone { flex: 1; position: relative; overflow: hidden; margin: 0 1.5rem 1rem; background: var(--void); border: 1px solid var(--border); border-radius: 4px; }
+#vocab-scatter { position: absolute; inset: 0; }
+#vocab-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: var(--dim); letter-spacing: 0.1em; text-transform: uppercase; pointer-events: none; }
 
-/* Vocabulary scatter */
-#vocab-zone { flex:1;position:relative;margin:1rem 1.25rem;border:1px solid var(--border);background:rgba(6,6,8,0.5);overflow:hidden;min-height:0; }
-#vocab-scatter { position:absolute;inset:0; }
 .vocab-term {
-  position:absolute;white-space:nowrap;
-  font-family:'Garamond','Georgia',serif;
-  transition:opacity 0.4s ease, color 0.4s ease, box-shadow 0.3s ease, border-color 0.3s ease;
-  animation:termAppear 0.5s ease forwards;
-  cursor:pointer;
-  user-select:none;
-  border:1px solid transparent;
-  padding:1px 4px;
-  border-radius:2px;
+  position: absolute; cursor: pointer; user-select: none; white-space: nowrap; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 2px 6px; border-radius: 3px; z-index: 1;
 }
-.vocab-term:hover { color:var(--bright) !important; }
-.vocab-term.anchored {
-  border-color:var(--accent);
-  background:var(--accent-dim);
-  box-shadow:0 0 10px var(--accent-glow);
-  color:var(--accent) !important;
-  z-index:15;
-}
-.vocab-term.highlighted { animation:vocabPulse 0.9s ease; z-index:20; }
-#vocab-empty { position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Consolas','Monaco',monospace;font-size:0.6rem;color:var(--dim);opacity:0.4;letter-spacing:0.1em;pointer-events:none; }
+.vocab-term:hover { color: var(--bright) !important; background: var(--surface); z-index: 10; }
+.vocab-term.anchored { color: var(--bright) !important; background: var(--accent-dim); border: 1px solid var(--accent); z-index: 5; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+.vocab-term.highlighted { color: #fff !important; text-shadow: 0 0 8px var(--accent); transform: scale(1.1); transition: all 0.2s; }
 
-/* Stats */
-#graph-stats { padding:0.5rem 1.25rem;font-family:'Consolas','Monaco',monospace;font-size:0.62rem;color:var(--dim);letter-spacing:0.06em;flex-shrink:0; }
-#graph-stats span { color:var(--accent);opacity:0.7; }
+#graph-stats { padding: 0.75rem 1.5rem; font-family: var(--font-mono); font-size: 0.6rem; color: var(--dim); display: flex; justify-content: space-between; border-top: 1px solid var(--border); }
 
-/* Cast button */
-#cast-zone { padding:0.75rem 1.25rem 1.25rem;flex-shrink:0; }
+#cast-zone { padding: 1.5rem; flex-shrink: 0; }
 #cast-btn {
-  width:100%;background:transparent;border:1px solid var(--border);
-  color:var(--dim);padding:0.75rem;
-  font-family:'Consolas','Monaco',monospace;font-size:0.72rem;
-  cursor:not-allowed;transition:all 0.4s ease;
-  text-transform:uppercase;letter-spacing:0.2em;
+  width: 100%; padding: 1rem; background: transparent; border: 1px solid var(--border); border-radius: 4px;
+  color: var(--dim); font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.3em;
+  text-transform: uppercase; cursor: not-allowed; transition: all 0.4s;
 }
-#cast-btn.ready {
-  border-color:var(--accent);color:var(--accent);cursor:pointer;
-  animation:pulse 3s infinite;
+#cast-btn.ready { border-color: var(--accent); color: var(--accent); cursor: pointer; }
+#cast-btn.ready:hover { background: var(--accent-glow); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(138,122,176,0.15); }
+#cast-btn.ready:active { transform: translateY(0); }
+
+/* Right Panel: The Reading */
+#reading-panel { flex: 1; display: flex; flex-direction: column; background: var(--void); position: relative; }
+
+#reading-scroll { flex: 1; overflow-y: auto; display: flex; flex-direction: column; padding: 2rem 4rem; }
+
+#reading-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--dim); opacity: 0.6; transition: opacity 0.3s; }
+#reading-empty .dash { font-size: 2rem; margin-bottom: 1rem; font-weight: 200; }
+#reading-empty .hint { font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; }
+
+#reading-card { display: none; width: 100%; max-width: 520px; margin: 0 auto; padding-bottom: 4rem; }
+#reading-card.visible { display: block; }
+
+/* Animations */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sealIn { from { opacity: 0; transform: scale(0.9) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+/* Reading Components */
+.cast-number {
+  font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.4em; color: var(--dim);
+  text-align: center; margin-bottom: 1rem; animation: fadeUp 0.6s ease both;
 }
-#cast-btn.ready:hover { background:var(--accent-dim);animation:none;opacity:1; }
-#cast-btn.ready:active { transform:scale(0.98); }
-#cast-btn:disabled { opacity:0.35;cursor:not-allowed;animation:none; }
 
-/* ─── RIGHT: THE READING ─── */
-#reading-panel { flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative; }
+#depth-label {
+  font-family: var(--font-mono); font-size: 0.5rem; text-transform: uppercase; letter-spacing: 0.2em;
+  color: var(--accent); text-align: center; margin-bottom: 2rem; opacity: 0.6; animation: fadeUp 0.6s ease 0.1s both;
+}
 
-#reading-scroll { flex:1;overflow-y:auto;padding:2rem 3rem; }
-#reading-scroll::-webkit-scrollbar { width:3px; }
-#reading-scroll::-webkit-scrollbar-thumb { background:var(--border); }
+#sigil-wrap {
+  width: 160px; height: 160px; margin: 0 auto 3rem; display: flex; align-items: center; justify-content: center;
+  animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+}
 
-/* Pre-cast state */
-#reading-empty { display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:1.5rem;opacity:0.3; }
-#reading-empty .dash { font-size:2rem;color:var(--dim);animation:flicker 5s infinite; }
-#reading-empty .hint { font-family:'Consolas','Monaco',monospace;font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--dim); }
-
-/* Reading card */
-#reading-card { display:none; }
-#reading-card.visible { display:block; }
-
-.cast-number { font-family:'Consolas','Monaco',monospace;font-size:0.62rem;letter-spacing:0.25em;color:var(--accent);opacity:0.6;text-align:center;margin-bottom:0.25rem;animation:fadeIn 0.8s ease forwards; }
-#depth-label { font-family:'Consolas','Monaco',monospace;font-size:0.55rem;letter-spacing:0.25em;text-transform:uppercase;color:var(--dim);opacity:0.3;text-align:center;margin-bottom:1.25rem;animation:fadeIn 0.8s ease forwards; }
-
-/* Sigil */
-#sigil-wrap { display:flex;justify-content:center;margin-bottom:1.75rem;animation:sigilIn 1s ease 0.2s both; }
-#sigil-wrap svg { filter:drop-shadow(0 0 8px rgba(138,122,176,0.2)); }
-
-/* Sign */
-.reading-section-label { font-family:'Consolas','Monaco',monospace;font-size:0.55rem;letter-spacing:0.22em;text-transform:uppercase;color:var(--dim);opacity:0.45;margin-bottom:0.3rem; }
-.reading-sign { font-size:1.15rem;font-style:italic;color:var(--accent);letter-spacing:0.06em;text-align:center;padding:0.6rem 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:1.75rem;animation:fadeUp 0.6s ease 0.5s both; }
+.reading-section-label { font-family: var(--font-mono); font-size: 0.55rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--dim); opacity: 0.45; margin-bottom: 0.3rem; }
+.reading-sign { font-size: 1.15rem; font-style: italic; color: var(--accent); letter-spacing: 0.06em; text-align: center; padding: 0.6rem 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); margin-bottom: 1.75rem; animation: fadeUp 0.6s ease 0.5s both; }
 
 /* Body */
-#reading-body { margin-bottom:1.5rem; }
+#reading-body { margin-bottom: 1.5rem; }
 .body-line {
-  font-size:1rem;color:var(--text);line-height:1.8;padding:0.1rem 0;
-  opacity:0;animation:fadeUp 0.5s ease both;
+  font-size: 1rem; color: var(--text); line-height: 1.8; padding: 0.1rem 0;
+  opacity: 0; animation: fadeUp 0.5s ease both;
 }
 
 /* Thread */
-.reading-rule { border:none;border-top:1px solid var(--border);margin:1.25rem 0;opacity:0;animation:fadeIn 0.5s ease both; }
-.reading-thread { font-size:0.95rem;font-style:italic;color:var(--dim);line-height:1.8;opacity:0;animation:fadeUp 0.5s ease both; }
+.reading-rule { border: none; border-top: 1px solid var(--border); margin: 1.25rem 0; opacity: 0; animation: fadeIn 0.5s ease both; }
+.reading-thread { font-size: 0.95rem; font-style: italic; color: var(--dim); line-height: 1.8; opacity: 0; animation: fadeUp 0.5s ease both; }
 
 /* Seal */
-#seal-wrap { text-align:center;margin-top:2.5rem;margin-bottom:1rem;opacity:0;animation:sealIn 1.2s ease both; }
-.reading-seal { font-size:1.6rem;font-weight:300;letter-spacing:0.35em;color:var(--bright);text-transform:lowercase; }
-.seal-ornament { font-family:'Consolas','Monaco',monospace;font-size:0.55rem;color:var(--accent);letter-spacing:0.3em;opacity:0.45;display:block;margin-top:0.4rem; }
+#seal-wrap { text-align: center; margin-top: 2.5rem; margin-bottom: 1rem; opacity: 0; animation: sealIn 1.2s ease both; }
+.reading-seal { font-size: 1.6rem; font-weight: 300; letter-spacing: 0.35em; color: var(--bright); text-transform: lowercase; }
+.seal-ornament { font-family: var(--font-mono); font-size: 0.55rem; color: var(--accent); letter-spacing: 0.3em; opacity: 0.45; display: block; margin-top: 0.4rem; }
 
 /* Footer actions */
-#reading-footer { padding:0.75rem 3rem 1.25rem;gap:0.75rem;flex-shrink:0;border-top:1px solid var(--border);display:none;background:var(--deep); }
-#reading-footer.visible { display:flex; }
+#reading-footer { padding: 0.75rem 3rem 1.25rem; gap: 0.75rem; flex-shrink: 0; border-top: 1px solid var(--border); display: none; background: var(--deep); }
+#reading-footer.visible { display: flex; }
 
-.action-btn { background:transparent;border:1px solid var(--border);color:var(--dim);padding:0.4rem 1.2rem;font-family:'Consolas','Monaco',monospace;font-size:0.65rem;cursor:pointer;transition:all 0.3s;text-transform:uppercase;letter-spacing:0.1em; }
-.action-btn:hover { border-color:var(--accent);color:var(--accent); }
-.action-btn:active { transform:scale(0.98); }
-.action-btn.primary { border-color:var(--accent);color:var(--accent); }
+.action-btn { background: transparent; border: 1px solid var(--border); color: var(--dim); padding: 0.4rem 1.2rem; font-family: var(--font-mono); font-size: 0.65rem; cursor: pointer; transition: all 0.3s; text-transform: uppercase; letter-spacing: 0.1em; }
+.action-btn:hover { border-color: var(--accent); color: var(--accent); }
+.action-btn:active { transform: scale(0.98); }
+.action-btn.primary { border-color: var(--accent); color: var(--accent); }
 
-@media(max-width:720px) {
-  #history-sidebar { position:absolute;left:0;top:0;bottom:0;z-index:100;width:220px; }
-  #history-sidebar.collapsed { width:0; }
-  #table-panel { width:100%;height:45%;border-right:none;border-bottom:1px solid var(--border); }
-  #main { flex-direction:column; }
-  #reading-scroll { padding:1.25rem 1.5rem; }
-  #reading-footer { padding:0.75rem 1.5rem; }
+@media(max-width: 720px) {
+  #history-sidebar { position: absolute; left: 0; top: 0; bottom: 0; z-index: 100; width: 220px; }
+  #history-sidebar.collapsed { width: 0; }
+  #table-panel { width: 100%; height: 45%; border-right: none; border-bottom: 1px solid var(--border); }
+  #main { flex-direction: column; }
+  #reading-scroll { padding: 1.25rem 1.5rem; }
+  #reading-footer { padding: 0.75rem 1.5rem; }
 }
 </style>
 </head>
 <body>
 <div id="app">
-  <div id="header">
+  <header id="header">
     <div id="header-left">
       <button id="history-toggle" class="header-btn" title="Toggle history" aria-label="Toggle history sidebar">◈</button>
       <h1>The Lexicon</h1>
     </div>
     <div id="header-right">combinatorial oracle</div>
-  </div>
+  </header>
   <div id="main">
     <!-- History Sidebar -->
-    <div id="history-sidebar" class="collapsed" role="complementary" aria-label="Reading History">
+    <aside id="history-sidebar" class="collapsed" aria-label="Reading History">
       <div id="history-header">
         <span>History</span>
         <button id="history-close" aria-label="Close history">✕</button>
       </div>
       <div id="history-list" aria-live="polite"></div>
-    </div>
+    </aside>
     <!-- Left: The Table -->
-    <div id="table-panel">
+    <section id="table-panel">
       <div id="table-header">The Table</div>
       <div id="speak-zone">
-        <textarea id="speak-input" placeholder="speak into the table..." rows="3" spellcheck="false"></textarea>
+        <textarea id="speak-input" placeholder="speak into the table..." rows="3" spellcheck="false" aria-label="Input field for the oracle"></textarea>
       </div>
       <div id="speak-hint">enter to speak &nbsp;·&nbsp; shift+enter for newline</div>
       <div id="vocab-zone">
@@ -219,14 +242,15 @@ body::before { content:"";position:fixed;inset:0;pointer-events:none;z-index:999
         <div id="vocab-empty">vocabulary will appear here</div>
       </div>
       <div id="graph-stats">
-        <span id="stat-terms">0</span> terms &nbsp;·&nbsp; <span id="stat-clusters">0</span> currents
+        <span><span id="stat-terms">0</span> terms</span>
+        <span><span id="stat-clusters">0</span> currents</span>
       </div>
       <div id="cast-zone">
         <button id="cast-btn" disabled>4 terms to cast</button>
       </div>
-    </div>
+    </section>
     <!-- Right: The Reading -->
-    <div id="reading-panel" role="main" aria-label="The Oracle's Reading">
+    <main id="reading-panel" aria-label="The Oracle's Reading">
       <div id="reading-scroll">
         <div id="reading-empty">
           <div class="dash">—</div>
@@ -248,41 +272,64 @@ body::before { content:"";position:fixed;inset:0;pointer-events:none;z-index:999
           </div>
         </article>
       </div>
-      <div id="reading-footer">
+      <footer id="reading-footer">
         <button class="action-btn primary" id="cast-again-btn">Cast Again</button>
         <button class="action-btn" id="copy-btn">Copy Reading</button>
         <button class="action-btn" id="clear-btn">Clear</button>
-      </div>
-    </div>
+      </footer>
+    </main>
   </div>
+  <div id="reading-live" class="sr-only" style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0;" aria-live="polite"></div>
 </div>
 
 <script>
 "use strict";
-// ═══════════════════════════════════════════════════════════
-// THE LEXICON v2 — Combinatorial Oracle (Production Revision)
-// ═══════════════════════════════════════════════════════════
+/**
+ * THE LEXICON v2.1.0 — Production Build
+ * An advanced combinatorial oracle based on graph-theoretic semantic analysis.
+ */
+
+// ─── Utilities ───────────────────────────────────────────
 
 /**
  * Standard Production Logger
  */
 class Logger {
   static prefix = "[Lexicon]";
+  /**
+   * @param {string} msg
+   * @param  {...any} args
+   */
   static info(msg, ...args) { console.log(`${this.prefix} INFO: ${msg}`, ...args); }
+  /**
+   * @param {string} msg
+   * @param  {...any} args
+   */
   static warn(msg, ...args) { console.warn(`${this.prefix} WARN: ${msg}`, ...args); }
+  /**
+   * @param {string} msg
+   * @param  {...any} args
+   */
   static error(msg, ...args) { console.error(`${this.prefix} ERROR: ${msg}`, ...args); }
+  /**
+   * @param {string} label
+   */
   static time(label) { console.time(`${this.prefix} ${label}`); }
+  /**
+   * @param {string} label
+   */
   static timeEnd(label) { console.timeEnd(`${this.prefix} ${label}`); }
 }
 
 /**
  * FNV-1a 32-bit stable hash implementation.
+ * Used for deterministic generation.
  * @param {string} str
  * @returns {number} 32-bit unsigned integer
  */
 function stableHash(str) {
   let h = 2166136261;
-  for (let i = 0; i < str.length; i++) {
+  for (let i = 0, len = str.length; i < len; i++) {
     h ^= str.charCodeAt(i);
     h = Math.imul(h, 16777619);
   }
@@ -291,6 +338,10 @@ function stableHash(str) {
 
 /**
  * Deterministically pick an element from an array based on a seed.
+ * @template T
+ * @param {T[]} arr
+ * @param {string|number} seed
+ * @returns {T|string}
  */
 function pick(arr, seed) {
   if (!Array.isArray(arr) || arr.length === 0) return "—";
@@ -300,6 +351,10 @@ function pick(arr, seed) {
 
 /**
  * Clamps a number between min and max.
+ * @param {number} v
+ * @param {number} min
+ * @param {number} max
+ * @returns {number}
  */
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 
@@ -326,10 +381,19 @@ function toRoman(n) {
 // ─── Semantic Engine ──────────────────────────────────────
 
 /**
+ * @typedef {Object} Node
+ * @property {number} frequency
+ * @property {Map<string, number>} neighbors
+ * @property {number} idf
+ */
+
+/**
  * Core NLP engine for analyzing text and building a semantic graph.
+ * Uses PageRank (TextRank) and Label Propagation for community detection.
  */
 class SemanticEngine {
   constructor() {
+    /** @type {Set<string>} */
     this.stopWords = new Set([
       "the","a","an","is","are","was","were","be","been","being","have","has","had",
       "do","does","did","will","would","could","should","may","might","must","shall",
@@ -341,8 +405,12 @@ class SemanticEngine {
       "we","our","you","your","he","him","his","she","her","it","its","they","them",
       "their","what","which","who","how","why","when","where","s","t"
     ]);
+    /** @type {Map<string, Node>} */
     this.graph = new Map();
+    /** @type {Map<string, number>} */
     this.docFreq = new Map();
+    /** @type {Map<string, number>} */
+    this.magnitudes = new Map(); // Cache for similarity calculations
     this.documents = 0;
     this.totalTokens = 0;
   }
@@ -375,7 +443,7 @@ class SemanticEngine {
 
     // Remove punctuation except for hyphens inside words
     p = p.replace(/[^\w\s-]/g, " ")
-         .replace(/(?<!\w)-+|-+(?!\w)/g, " "); // Remove hyphens not surrounded by alphanumeric chars
+         .replace(/(?<!\w)-+|-+(?!\w)/g, " ");
 
     return p.split(/\s+/)
       .filter(w => w.length > 1 && !this.stopWords.has(w));
@@ -389,9 +457,10 @@ class SemanticEngine {
     const toks = this.tokenize(text);
     if (!toks.length) return;
 
-    Logger.info(`Adding document with ${toks.length} tokens.`);
+    Logger.info(`Processing input: ${toks.length} tokens.`);
     this.documents++;
     this.totalTokens += toks.length;
+    this.magnitudes.clear(); // Invalidate magnitude cache
 
     const uniq = new Set(toks);
     for (const w of uniq) this.docFreq.set(w, (this.docFreq.get(w) || 0) + 1);
@@ -404,10 +473,10 @@ class SemanticEngine {
     }
 
     const windowSize = 4;
-    for (let i = 0; i < toks.length; i++) {
+    for (let i = 0, len = toks.length; i < len; i++) {
       const node = this.graph.get(toks[i]);
       const start = Math.max(0, i - windowSize);
-      const end = Math.min(toks.length - 1, i + windowSize);
+      const end = Math.min(len - 1, i + windowSize);
 
       for (let j = start; j <= end; j++) {
         if (i === j) continue;
@@ -425,6 +494,10 @@ class SemanticEngine {
 
   /**
    * Computes PageRank-style scores for terms in the graph.
+   * @param {number} damping
+   * @param {number} iterations
+   * @param {number} convergence
+   * @returns {{word: string, score: number, frequency: number, tfidf: number}[]}
    */
   textRank(damping = 0.85, iterations = 30, convergence = 0.0001) {
     const nodes = Array.from(this.graph.keys());
@@ -484,6 +557,9 @@ class SemanticEngine {
 
   /**
    * Detects communities using label propagation.
+   * Optimized with single seeded shuffle per iteration.
+   * @param {number} iterations
+   * @returns {string[][]}
    */
   getClusters(iterations = 12) {
     const nodes = Array.from(this.graph.keys());
@@ -494,18 +570,19 @@ class SemanticEngine {
     const labels = new Map();
     for (const n of nodes) labels.set(n, n);
 
-    // Deterministic seeded shuffle based on graph state
-    const seed = this.documents + "_" + this.totalTokens + "_" + this.graph.size;
+    const seedBase = this.documents + "_" + this.totalTokens + "_" + nodes.length;
 
     for (let it = 0; it < iterations; it++) {
       let changed = false;
 
-      // Seeded shuffle of nodes for stability
-      const order = [...nodes].sort((a, b) => {
-        const hA = stableHash(a + it + seed);
-        const hB = stableHash(b + it + seed);
-        return hA - hB;
-      });
+      // Efficient seeded shuffle
+      const order = [...nodes];
+      const iterSeed = seedBase + "_" + it;
+      for (let i = order.length - 1; i > 0; i--) {
+        const h = stableHash(iterSeed + i);
+        const j = h % (i + 1);
+        [order[i], order[j]] = [order[j], order[i]];
+      }
 
       for (const node of order) {
         const nd = this.graph.get(node);
@@ -549,42 +626,55 @@ class SemanticEngine {
   }
 
   /**
+   * Computes magnitude of a node's neighbor vector with TF-IDF weights.
+   * @param {string} word
+   * @param {Node} nd
+   * @returns {number}
+   */
+  _getMagnitude(word, nd) {
+    if (this.magnitudes.has(word)) return this.magnitudes.get(word);
+    let mag = 0;
+    for (const [nb, wt] of nd.neighbors) {
+      const idf = this.graph.get(nb)?.idf || 1;
+      const val = wt * idf;
+      mag += val * val;
+    }
+    const result = Math.sqrt(mag);
+    this.magnitudes.set(word, result);
+    return result;
+  }
+
+  /**
    * Computes cosine similarity between two words in the graph.
+   * @param {string} w1
+   * @param {string} w2
+   * @returns {number}
    */
   semanticSimilarity(w1, w2) {
     const n1 = this.graph.get(w1);
     const n2 = this.graph.get(w2);
     if (!n1 || !n2) return 0;
 
-    const getWeight = (nd, nb) => {
-      const edgeWeight = nd.neighbors.get(nb) || 0;
-      const idf = this.graph.get(nb)?.idf || 1;
-      return edgeWeight * idf;
-    };
+    const mag1 = this._getMagnitude(w1, n1);
+    const mag2 = this._getMagnitude(w2, n2);
+    if (mag1 === 0 || mag2 === 0) return 0;
 
     let dotProduct = 0;
-    let mag1 = 0;
-    let mag2 = 0;
-
-    for (const [nb] of n1.neighbors) {
-      const w = getWeight(n1, nb);
-      mag1 += w * w;
-    }
-
-    for (const [nb] of n2.neighbors) {
-      const w = getWeight(n2, nb);
-      mag2 += w * w;
-    }
-
-    for (const [nb] of n1.neighbors) {
+    for (const [nb, wt1] of n1.neighbors) {
       if (n2.neighbors.has(nb)) {
-        dotProduct += getWeight(n1, nb) * getWeight(n2, nb);
+        const idf = this.graph.get(nb)?.idf || 1;
+        const wt2 = n2.neighbors.get(nb);
+        dotProduct += (wt1 * idf) * (wt2 * idf);
       }
     }
 
-    return (mag1 && mag2) ? dotProduct / (Math.sqrt(mag1) * Math.sqrt(mag2)) : 0;
+    return dotProduct / (mag1 * mag2);
   }
 
+  /**
+   * @param {number} n
+   * @returns {{word: string, frequency: number, tfidf: number}[]}
+   */
   getTopTerms(n = 8) {
     return Array.from(this.graph.entries())
       .map(([w, nd]) => ({ word: w, frequency: nd.frequency, tfidf: nd.frequency * nd.idf }))
@@ -598,89 +688,22 @@ class SemanticEngine {
 // ─── Lexicon Renderer ─────────────────────────────────────
 
 /**
- * Orchestrates the generation of combinatorial readings.
+ * Orchestrates the generation of combinatorial readings based on graph analysis.
  */
 class LexiconRenderer {
   constructor() {
     this.castCount = 0;
-    this.verbs = [
-      "bleeds","sinks","pulls","tears","holds","burns","fades","drifts","breaks","turns",
-      "settles","presses","opens","closes","falls","rises","twists","stills","carries",
-      "echoes","bends","waits","watches","keeps","finds","loses","marks","folds","runs",
-      "stays","returns","shifts","spreads","dissolves","empties","gathers","follows",
-      "unravels","ossifies","vibrates","calcifies","radiates","glimmers","shudders",
-      "suffocates","breathes","whispers","screams","devours","nourishes","erases",
-      "writes","forgets","remembers","hides","seeks"
-    ];
-    this.preps = [
-      "through","into","under","over","beneath","against","toward","beyond","within",
-      "around","beside","before","after","between","without","despite","past","inside",
-      "across","atop","amidst","alongside"
-    ];
-    this.temporals = [
-      "before","after","when","until","since","as though","while","once","wherever",
-      "whenever","until the end of","long before"
-    ];
-    this.abstracts = [
-      "absence","longing","dread","weight","void","gravity","entropy","inertia","decay",
-      "erosion","friction","resistance","tension","dissolution","cessation","rupture",
-      "breach","accretion","collapse","drift","remainder","pressure","static","threshold",
-      "stasis","vertigo","parallax","resonance","interference","transparency","opacity",
-      "silence","feedback","distortion","symmetry","fracture","membrane","catalyst",
-      "vacuum","orbit","velocity","anchor","transience"
-    ];
-    this.sounds = [
-      "static","drip","hum","crack","whisper","echo","feedback","rattle","hiss","thrum",
-      "groan","creak","sigh","wail","drone","resonance","silence","white noise",
-      "reverberation","glitch","interference","pulse"
-    ];
-    this.sensations = [
-      "tremor","vertigo","chill","numbness","tension","weight","pressure","derealization",
-      "tinnitus","paresthesia","pallor","spasm","drag","asphyxia","shiver","electric",
-      "cold","heat","nausea"
-    ];
-    this.timeWords = [
-      "dusk","midnight","twilight","3 AM","closing time","the interregnum","the liminal",
-      "the gloaming","the delay","the ellipsis","the comma","the witching hour",
-      "the blue hour","an eternity","the last second","the deep night","the morning after"
-    ];
-    this.lore = [
-      "the city forgot its own name decades ago",
-      "every street leads back to where you started",
-      "the rain here never quite reaches the ground",
-      "there used to be more color, once",
-      "the clocks all stopped at different times",
-      "the old district doesn't exist on any map",
-      "the shadows here have a different weight",
-      "the maps are redrawn each night and no one admits to it",
-      "there are stairs that go down further than the building is tall",
-      "you can leave the city but it doesn't always let you arrive elsewhere",
-      "the streetlights turn on when they hear you coming",
-      "the wind carries conversations that ended long ago",
-      "the city dreams and you are a small willing part of the dream",
-      "your reflection arrives a moment after you do",
-      "somewhere a phone has been ringing since before you were born",
-      "the walls have grown thick with the weight of secrets",
-      "no one remembers who built the spire",
-      "the birds here only sing at midnight",
-      "the fog has been here as long as the statues"
-    ];
-    this.loops = [
-      "but what happened to the others?",
-      "and yet the lights still flicker",
-      "someone is watching from the upper floors",
-      "but the pattern doesn't quite fit",
-      "yet footsteps echo where no one walks",
-      "but why does the echo arrive before the sound?",
-      "who is left to read these signs?",
-      "yet the map keeps changing when I look away",
-      "and the numbers on the doors are wrong",
-      "but the reflection is still standing there",
-      "and the radio plays songs from next week",
-      "but the door was locked from the outside",
-      "yet the ink is still wet"
-    ];
+    this.verbs = ["bleeds","sinks","pulls","tears","holds","burns","fades","drifts","breaks","turns","settles","presses","opens","closes","falls","rises","twists","stills","carries","echoes","bends","waits","watches","keeps","finds","loses","marks","folds","runs","stays","returns","shifts","spreads","dissolves","empties","gathers","follows","unravels","ossifies","vibrates","calcifies","radiates","glimmers","shudders","suffocates","breathes","whispers","screams","devours","nourishes","erases","writes","forgets","remembers","hides","seeks"];
+    this.preps = ["through","into","under","over","beneath","against","toward","beyond","within","around","beside","before","after","between","without","despite","past","inside","across","atop","amidst","alongside"];
+    this.temporals = ["before","after","when","until","since","as though","while","once","wherever","whenever","until the end of","long before"];
+    this.abstracts = ["absence","longing","dread","weight","void","gravity","entropy","inertia","decay","erosion","friction","resistance","tension","dissolution","cessation","rupture","breach","accretion","collapse","drift","remainder","pressure","static","threshold","stasis","vertigo","parallax","resonance","interference","transparency","opacity","silence","feedback","distortion","symmetry","fracture","membrane","catalyst","vacuum","orbit","velocity","anchor","transience"];
+    this.sounds = ["static","drip","hum","crack","whisper","echo","feedback","rattle","hiss","thrum","groan","creak","sigh","wail","drone","resonance","silence","white noise","reverberation","glitch","interference","pulse"];
+    this.sensations = ["tremor","vertigo","chill","numbness","tension","weight","pressure","derealization","tinnitus","paresthesia","pallor","spasm","drag","asphyxia","shiver","electric","cold","heat","nausea"];
+    this.timeWords = ["dusk","midnight","twilight","3 AM","closing time","the interregnum","the liminal","the gloaming","the delay","the ellipsis","the comma","the witching hour","the blue hour","an eternity","the last second","the deep night","the morning after"];
+    this.lore = ["the city forgot its own name decades ago","every street leads back to where you started","the rain here never quite reaches the ground","there used to be more color, once","the clocks all stopped at different times","the old district doesn't exist on any map","the shadows here have a different weight","the maps are redrawn each night and no one admits to it","there are stairs that go down further than the building is tall","you can leave the city but it doesn't always let you arrive elsewhere","the streetlights turn on when they hear you coming","the wind carries conversations that ended long ago","the city dreams and you are a small willing part of the dream","your reflection arrives a moment after you do","somewhere a phone has been ringing since before you were born","the walls have grown thick with the weight of secrets","no one remembers who built the spire","the birds here only sing at midnight","the fog has been here as long as the statues"];
+    this.loops = ["but what happened to the others?","and yet the lights still flicker","someone is watching from the upper floors","but the pattern doesn't quite fit","yet footsteps echo where no one walks","but why does the echo arrive before the sound?","who is left to read these signs?","yet the map keeps changing when I look away","and the numbers on the doors are wrong","but the reflection is still standing there","and the radio plays songs from next week","but the door was locked from the outside","yet the ink is still wet"];
 
+    /** @type {((a:string, b:string, e:any, s:string)=>string)[]} */
     this.formulas = [
       (a, b, e, s) => `${a} ${pick(this.verbs, s + "v0")} ${pick(this.preps, s + "p0")} ${b}`,
       (a, b, e, s) => `the ${a} of ${b}`,
@@ -699,6 +722,11 @@ class LexiconRenderer {
 
   /**
    * Applies a randomly selected formula to two terms.
+   * @param {number} fIdx
+   * @param {string} a
+   * @param {string} b
+   * @param {string} seed
+   * @returns {string}
    */
   _formula(fIdx, a, b, seed) {
     const f = this.formulas[Math.abs(fIdx) % this.formulas.length];
@@ -714,11 +742,12 @@ class LexiconRenderer {
    * Generates a complete reading from the current engine state.
    * @param {SemanticEngine} engine
    * @param {string|null} anchor
+   * @returns {Object|null}
    */
   cast(engine, anchor = null) {
     this.castCount++;
     const N = this.castCount;
-    const seed = "C" + N + "_" + engine.totalTokens + "_" + engine.nodeCount + "_" + Date.now();
+    const seed = `C${N}_${engine.documents}_${engine.totalTokens}_${engine.nodeCount}_${anchor || ""}`;
 
     const ranked = engine.textRank();
     if (ranked.length < 3) return null;
@@ -726,8 +755,7 @@ class LexiconRenderer {
     const clusters = engine.getClusters(15);
 
     // Axis: highest TextRank, or anchor if set
-    let axis = ranked[0].word;
-    if (anchor) axis = anchor;
+    let axis = anchor || ranked[0].word;
 
     // Bridge: among top-10, maximally connected to cluster heads
     const clusterHeads = clusters.slice(0, 6).map(c => c[0]).filter(Boolean);
@@ -741,7 +769,6 @@ class LexiconRenderer {
       }
       if (score > maxBridgeScore) { maxBridgeScore = score; bridge = t.word; }
     }
-    if (bridge === axis && ranked[1]) bridge = ranked[1].word;
     if (bridge === axis) bridge = ranked.find(r => r.word !== axis)?.word || axis;
 
     // Outlier: term in top-12 least similar to axis
@@ -752,9 +779,7 @@ class LexiconRenderer {
       const sim = engine.semanticSimilarity(axis, t.word);
       if (sim < minSim) { minSim = sim; outlier = t.word; }
     }
-    if (outlier === axis) outlier = ranked[ranked.length - 1]?.word || axis;
 
-    // Pool of user terms (unique, ordered by rank)
     const pool = [];
     const seen = new Set([axis, bridge, outlier]);
     for (const r of ranked) {
@@ -767,9 +792,19 @@ class LexiconRenderer {
     const thread = this._buildThread(ranked, outlier, seed, engine.nodeCount);
     const seal   = outlier;
 
-    return { castNumber: N, sign, body, thread, seal, axis, bridge, outlier, termCount: ranked.length, clusterCount: clusters.length, ranked, clusters, seed };
+    return {
+      castNumber: N, sign, body, thread, seal, axis, bridge, outlier,
+      termCount: ranked.length, clusterCount: clusters.length,
+      ranked, clusters, seed
+    };
   }
 
+  /**
+   * @param {string} axis
+   * @param {string} bridge
+   * @param {string} seed
+   * @returns {string}
+   */
   _buildSign(axis, bridge, seed) {
     const forms = [
       axis + " / " + bridge,
@@ -782,6 +817,17 @@ class LexiconRenderer {
     return pick(forms, seed + "sign");
   }
 
+  /**
+   * @param {any[]} ranked
+   * @param {string[][]} clusters
+   * @param {string} axis
+   * @param {string} bridge
+   * @param {string} outlier
+   * @param {(i:number)=>string} T
+   * @param {string} seed
+   * @param {number} termCount
+   * @returns {string[]}
+   */
   _buildBody(ranked, clusters, axis, bridge, outlier, T, seed, termCount) {
     const usedFormulas = new Set();
     const pickFormula = (key) => {
@@ -798,7 +844,7 @@ class LexiconRenderer {
 
     const lines = [];
 
-    // DEPTH: fragmentary (< 8 terms)
+    // Fragmentary DEPTH (< 8 terms)
     if (termCount < 8) {
       const ca0 = clusters[0]?.[0] || ranked[0]?.word || axis;
       let cb0 = clusters[1]?.[0] || ranked[1]?.word || bridge;
@@ -811,33 +857,28 @@ class LexiconRenderer {
       return lines;
     }
 
-    // Line 1: Two largest cluster heads interact
+    // Standard/Dense DEPTH
     const ca0 = clusters[0]?.[0] || ranked[0]?.word || axis;
     let cb0 = clusters[1]?.[0] || ranked[1]?.word || bridge;
     if (cb0 === ca0) cb0 = outlier;
     lines.push(this._formula(pickFormula("f0"), ca0, cb0, seed + "L0"));
 
-    // Line 2: Bridge node with ranked term
     const ca1 = bridge;
     const cb1 = T(0);
     lines.push(this._formula(pickFormula("f1"), ca1, cb1, seed + "L1"));
 
-    // Line 3: Lore with user term
     const loreStr = pick(this.lore, seed + "lore");
     const groundTerm = clusters[0]?.[1] || T(1);
     lines.push(loreStr + " — " + groundTerm);
 
-    // Line 4: Third cluster vs timeWord
     const ca3 = clusters[2]?.[0] || T(2);
     const timeW = pick(this.timeWords, seed + "tw");
     lines.push(this._formula(pickFormula("f3"), ca3, timeW, seed + "L3"));
 
-    // Line 5: Outlier vs pool term
     const ca4 = outlier;
     const cb4 = T(3);
     lines.push(this._formula(pickFormula("f4"), ca4, cb4, seed + "L4"));
 
-    // DEPTH: dense (20+ terms) — extra cross-cluster line
     if (termCount >= 20) {
       const c1 = clusters[0]?.[0] || T(0);
       const c2 = clusters[1]?.[0] || T(1);
@@ -847,32 +888,48 @@ class LexiconRenderer {
     return lines;
   }
 
+  /**
+   * @param {any[]} ranked
+   * @param {string} outlier
+   * @param {string} seed
+   * @param {number} termCount
+   * @returns {string}
+   */
   _buildThread(ranked, outlier, seed, termCount) {
     const mid = ranked[Math.floor(ranked.length / 2)]?.word || outlier;
     const temporal = pick(this.temporals, seed + "thr_t");
     const loop = pick(this.loops, seed + "thr_l");
-    if (termCount < 8) {
-      return mid + " " + temporal + " " + outlier + "?";
-    }
+    if (termCount < 8) return mid + " " + temporal + " " + outlier + "?";
     return mid + " " + temporal + " " + outlier + " — " + loop;
   }
 }
 
 // ─── Sigil Builder ────────────────────────────────────────
 
+/**
+ * Builds an SVG sigil based on the semantic graph structure.
+ * @param {any[]} ranked
+ * @param {string[][]} clusters
+ * @param {SemanticEngine} engine
+ * @returns {string} SVG Inner HTML
+ */
 function buildSigil(ranked, clusters, engine) {
   const SIZE = 160, cx = 80, cy = 80, R = 50;
   const n = Math.min(clusters.length, 6);
   let svg = `<circle cx="${cx}" cy="${cy}" r="${SIZE/2 - 6}" fill="none" stroke="#8a7ab0" stroke-width="0.3" opacity="0.1"/>`;
+
   if (n === 0) {
     svg += `<circle cx="${cx}" cy="${cy}" r="3" fill="#8a7ab0" opacity="0.5"/>`;
     return svg;
   }
+
   const pts = clusters.slice(0, n).map((cluster, i) => {
     const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
     const r = R * (0.72 + Math.min(0.28, cluster.length * 0.05));
-    return { x: cx + Math.cos(angle) * r, y: cy + Math.sin(angle) * r, cluster, i };
+    return { x: cx + Math.cos(angle) * r, y: cy + Math.sin(angle) * r, cluster };
   });
+
+  // Connections
   for (let i = 0; i < pts.length; i++) {
     for (let j = i + 1; j < pts.length; j++) {
       const dist = j - i;
@@ -885,33 +942,37 @@ function buildSigil(ranked, clusters, engine) {
       }
     }
   }
+
+  // Radials and Nodes
   for (const pt of pts) {
     svg += `<line x1="${cx}" y1="${cy}" x2="${pt.x.toFixed(1)}" y2="${pt.y.toFixed(1)}" stroke="#8a7ab0" stroke-width="0.4" opacity="0.18"/>`;
-  }
-  for (const pt of pts) {
     const nodeR = clamp(2.5 + pt.cluster.length * 0.55, 2.5, 8);
     svg += `<circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="${nodeR.toFixed(1)}" fill="none" stroke="#8a7ab0" stroke-width="0.75" opacity="0.4"/>`;
     svg += `<circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="1.2" fill="#8a7ab0" opacity="0.55"/>`;
   }
+
   svg += `<circle cx="${cx}" cy="${cy}" r="4.5" fill="none" stroke="#8a7ab0" stroke-width="0.9" opacity="0.65"/>`;
   svg += `<circle cx="${cx}" cy="${cy}" r="1.5" fill="#8a7ab0" opacity="0.85"/>`;
   return svg;
 }
 
-// ─── Reading Animator ─────────────────────────────────────
+// ─── Animation Manager ────────────────────────────────────
 
 /**
- * Global manager for animation timeouts to prevent race conditions.
+ * Manages UI animation sequences and ensures cleanup.
  */
 class AnimationManager {
   static timeouts = [];
-
+  /**
+   * @param {()=>void} fn
+   * @param {number} delay
+   * @returns {number}
+   */
   static add(fn, delay) {
     const id = setTimeout(fn, delay);
     this.timeouts.push(id);
     return id;
   }
-
   static clear() {
     this.timeouts.forEach(id => clearTimeout(id));
     this.timeouts = [];
@@ -919,23 +980,28 @@ class AnimationManager {
 }
 
 /**
- * Animates the appearance of a new reading.
+ * Animates the sequence of a new reading appearance.
  * @param {Object} reading
  */
 function animateReading(reading) {
   AnimationManager.clear();
+  const liveRegion = document.getElementById("reading-live");
+  if (liveRegion) liveRegion.setAttribute("aria-busy", "true");
 
   const BASE_DELAY  = 0.5;
   const LINE_STRIDE = 0.22;
 
+  /**
+   * @param {string} id
+   * @param {number} delay
+   */
   const resetAnim = (id, delay) => {
     const el = document.getElementById(id);
     if (!el) return;
     el.style.animation = "none";
-    el.style.animationDelay = "";
-    void el.offsetHeight;
+    void el.offsetHeight; // Force reflow
     el.style.animation = "";
-    if (delay !== undefined) el.style.animationDelay = delay + "s";
+    el.style.animationDelay = delay + "s";
   };
 
   resetAnim("cast-number", 0.1);
@@ -952,7 +1018,7 @@ function animateReading(reading) {
   }, 450);
 
   const bodyEl = document.getElementById("reading-body");
-  bodyEl.textContent = ""; // Clear using textContent
+  bodyEl.textContent = "";
   reading.body.forEach((line, i) => {
     const el = document.createElement("div");
     el.className = "body-line";
@@ -962,11 +1028,11 @@ function animateReading(reading) {
     bodyEl.appendChild(el);
   });
 
-  const ruleDelay  = (BASE_DELAY + reading.body.length * LINE_STRIDE + 0.15).toFixed(2);
+  const ruleDelay   = (BASE_DELAY + reading.body.length * LINE_STRIDE + 0.15).toFixed(2);
   const threadDelay = (parseFloat(ruleDelay) + 0.2).toFixed(2);
 
-  resetAnim("reading-rule", ruleDelay);
-  resetAnim("reading-thread", threadDelay);
+  resetAnim("reading-rule", parseFloat(ruleDelay));
+  resetAnim("reading-thread", parseFloat(threadDelay));
 
   const threadLabel = document.getElementById("thread-label");
   threadLabel.textContent = "thread";
@@ -977,12 +1043,20 @@ function animateReading(reading) {
   }, parseFloat(threadDelay) * 1000);
 
   const sealDelay = (parseFloat(threadDelay) + 0.5).toFixed(2);
-  resetAnim("seal-wrap", sealDelay);
+  resetAnim("seal-wrap", parseFloat(sealDelay));
   document.getElementById("seal-ornament").textContent = "◈";
+
+  if (liveRegion) {
+    liveRegion.setAttribute("aria-busy", "false");
+    liveRegion.textContent = `Reading ${toRoman(reading.castNumber)} generated. Sign: ${reading.sign}`;
+  }
 }
 
 // ─── Main Application ─────────────────────────────────────
 
+/**
+ * Orchestrates the application state and DOM events.
+ */
 class LexiconApp {
   constructor() {
     this.engine   = new SemanticEngine();
@@ -1001,6 +1075,7 @@ class LexiconApp {
     this.readingFooter = document.getElementById("reading-footer");
 
     this._bindEvents();
+    Logger.info("Application initialized.");
   }
 
   _bindEvents() {
@@ -1009,6 +1084,7 @@ class LexiconApp {
     });
     this.inputEl.addEventListener("input", () => this._handleInput());
     this.castBtn.addEventListener("click", () => this._cast());
+
     document.getElementById("cast-again-btn").addEventListener("click", () => this._cast());
     document.getElementById("copy-btn").addEventListener("click", () => this._copy());
     document.getElementById("clear-btn").addEventListener("click", () => this._clear());
@@ -1064,18 +1140,41 @@ class LexiconApp {
     }
   }
 
+  /**
+   * @param {any[]} topRanked
+   */
   _renderVocabScatter(topRanked) {
     const scatter = document.getElementById("vocab-scatter");
     const empty   = document.getElementById("vocab-empty");
     const nodes   = this.engine.graph;
 
-    if (!nodes.size) { scatter.innerHTML = ""; empty.style.display = "flex"; return; }
+    if (!nodes.size) {
+      scatter.textContent = "";
+      empty.style.display = "flex";
+      return;
+    }
     empty.style.display = "none";
 
     const maxFreq = Math.max(1, ...Array.from(nodes.values()).map(n => n.frequency));
     const topSet  = new Set(topRanked.slice(0, 4).map(t => t.word));
-    const existing = new Set(Array.from(scatter.children).map(c => c.dataset.term));
+    const existing = new Set();
 
+    // Update existing nodes and collect their keys
+    for (const el of Array.from(scatter.children)) {
+      const word = el.dataset.term;
+      if (!nodes.has(word)) {
+        el.remove();
+        continue;
+      }
+      existing.add(word);
+      const nd = nodes.get(word);
+      const isTop = topSet.has(word);
+      el.style.color = isTop ? "var(--accent)" : "var(--dim)";
+      const normFreq = nd.frequency / maxFreq;
+      el.style.fontSize = (0.62 + normFreq * 0.33).toFixed(2) + "rem";
+    }
+
+    // Create new nodes
     for (const [word, nd] of nodes) {
       if (existing.has(word)) continue;
       const el = document.createElement("div");
@@ -1099,22 +1198,12 @@ class LexiconApp {
       scatter.appendChild(el);
     }
 
-    // Single-pass update for existing nodes
-    for (const el of scatter.children) {
-      const word = el.dataset.term;
-      if (!word) continue;
-      const nd = nodes.get(word);
-      if (nd) {
-        const isTop = topSet.has(word);
-        el.style.color = isTop ? "var(--accent)" : "var(--dim)";
-        const normFreq = nd.frequency / maxFreq;
-        el.style.fontSize = (0.62 + normFreq * 0.33).toFixed(2) + "rem";
-      }
-    }
-
     this._updateAnchorVisuals();
   }
 
+  /**
+   * @param {string} word
+   */
   _toggleAnchor(word) {
     this.anchoredTerm = (this.anchoredTerm === word) ? null : word;
     this._updateAnchorVisuals();
@@ -1125,7 +1214,7 @@ class LexiconApp {
     for (const el of scatter.children) {
       const isAnchored = el.dataset.term === this.anchoredTerm;
       el.classList.toggle("anchored", isAnchored);
-      el.setAttribute("aria-pressed", isAnchored);
+      el.setAttribute("aria-pressed", String(isAnchored));
     }
   }
 
@@ -1157,17 +1246,15 @@ class LexiconApp {
     sigilSvg.innerHTML = buildSigil(reading.ranked, reading.clusters, this.engine);
 
     this.readingEmpty.style.display = "none";
-    this.readingCard.classList.add("visible");
-    this.readingFooter.classList.add("visible");
+    this.readingCard.classList.remove("visible");
 
-    // Force reflow for animation reset
-    const card = document.getElementById("reading-card");
-    card.style.display = "none";
-    void card.offsetHeight;
-    card.style.display = "";
-
-    animateReading(reading);
-    this._highlightVocab(reading);
+    // Smooth transition reset
+    requestAnimationFrame(() => {
+      this.readingCard.classList.add("visible");
+      this.readingFooter.classList.add("visible");
+      animateReading(reading);
+      this._highlightVocab(reading);
+    });
 
     this.history.unshift({
       castNumber: reading.castNumber,
@@ -1175,12 +1262,15 @@ class LexiconApp {
       sign: reading.sign,
       reading: reading
     });
-    if (this.history.length > 8) this.history.pop();
+    if (this.history.length > 12) this.history.pop();
     this._renderHistory();
 
     document.getElementById("reading-scroll").scrollTop = 0;
   }
 
+  /**
+   * @param {Object} reading
+   */
   _highlightVocab(reading) {
     const words = new Set([
       ...this.engine.tokenize(reading.sign),
@@ -1286,7 +1376,7 @@ class LexiconApp {
       try {
         document.execCommand("copy");
       } catch (err) {
-        console.error("Copy failed:", err);
+        Logger.error("Copy fallback failed.", err);
       }
       document.body.removeChild(ta);
     };
@@ -1310,24 +1400,33 @@ class LexiconApp {
     this.lastReading = null;
     this.history = [];
     this.anchoredTerm = null;
-    document.getElementById("vocab-scatter").innerHTML = "";
+
+    const scatter = document.getElementById("vocab-scatter");
+    while (scatter.lastChild) scatter.removeChild(scatter.lastChild);
     document.getElementById("vocab-empty").style.display = "flex";
+
     this.readingCard.classList.remove("visible");
     this.readingFooter.classList.remove("visible");
     this.readingEmpty.style.display = "";
+
     this.statTerms.textContent  = "0";
     this.statClust.textContent  = "0";
+
+    AnimationManager.clear();
+
     const btn = this.castBtn;
     btn.textContent = "4 terms to cast";
     btn.disabled = true;
     btn.classList.remove("ready");
+
     this._renderHistory();
     this.inputEl.focus();
+    Logger.info("State cleared.");
   }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  const app = new LexiconApp();
+  new LexiconApp();
   document.getElementById("speak-input").focus();
 });
 </script>
