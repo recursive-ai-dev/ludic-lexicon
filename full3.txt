@@ -373,9 +373,9 @@ class LexiconApp {
 
     // Force reflow for animation reset
     const card = document.getElementById("reading-card");
-    card.style.display = "none";
-    void card.offsetHeight;
-    card.style.display = "";
+    card.classList.remove("visible");
+    void card.offsetHeight; // still forces recalc if needed
+    requestAnimationFrame(() => card.classList.add("visible"));
 
     animateReading(reading);
     this._highlightVocab(reading);
