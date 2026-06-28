@@ -904,17 +904,20 @@ function buildSigil(ranked, clusters, engine) {
  * Global manager for animation timeouts to prevent race conditions.
  */
 class AnimationManager {
-  static timeouts = [];
+  static timeouts = new Set();
 
   static add(fn, delay) {
-    const id = setTimeout(fn, delay);
-    this.timeouts.push(id);
+    const id = setTimeout(() => {
+      this.timeouts.delete(id);
+      fn();
+    }, delay);
+    this.timeouts.add(id);
     return id;
   }
 
   static clear() {
     this.timeouts.forEach(id => clearTimeout(id));
-    this.timeouts = [];
+    this.timeouts.clear();
   }
 }
 
@@ -1027,40 +1030,55 @@ class LexiconApp {
   }
 
   _speak() {
-    const text = this.inputEl.value.trim();
+    let text = this.inputEl.value.trim();
     if (!text) return;
+    if (text.length > 10000) {
+      text = text.substring(0, 10000); // Prevent DoS
+    }
+
     this.inputEl.value = "";
     this.inputEl.style.height = "";
     this.inputEl.rows = 3;
 
-    this.engine.addText(text);
-    this._refresh();
+    try {
+      this.engine.addText(text);
+      this._refresh();
+    } catch (e) {
+      Logger.error("Failed to parse text: " + e.message);
+    }
   }
 
   _handleInput() {
-    this.inputEl.style.height = "auto";
-    this.inputEl.style.height = (this.inputEl.scrollHeight) + "px";
+    if (this._inputFrame) cancelAnimationFrame(this._inputFrame);
+    this._inputFrame = requestAnimationFrame(() => {
+      this.inputEl.style.height = "auto";
+      this.inputEl.style.height = (this.inputEl.scrollHeight) + "px";
+    });
   }
 
   _refresh() {
-    const ranked = this.engine.textRank();
-    const clusters = this.engine.getClusters(12);
-    const n = this.engine.nodeCount;
+    try {
+      const ranked = this.engine.textRank();
+      const clusters = this.engine.getClusters(12);
+      const n = this.engine.nodeCount;
 
-    this.statTerms.textContent = n;
-    this.statClust.textContent = clusters.length;
+      this.statTerms.textContent = n;
+      this.statClust.textContent = clusters.length;
 
-    this._renderVocabScatter(ranked);
+      this._renderVocabScatter(ranked);
 
-    const btn = this.castBtn;
-    if (n >= 4) {
-      btn.textContent = "C A S T";
-      btn.disabled = false;
-      btn.classList.add("ready");
-    } else {
-      btn.textContent = (4 - n) + " more term" + (4 - n !== 1 ? "s" : "") + " to cast";
-      btn.disabled = true;
-      btn.classList.remove("ready");
+      const btn = this.castBtn;
+      if (n >= 4) {
+        btn.textContent = "C A S T";
+        btn.disabled = false;
+        btn.classList.add("ready");
+      } else {
+        btn.textContent = (4 - n) + " more term" + (4 - n !== 1 ? "s" : "") + " to cast";
+        btn.disabled = true;
+        btn.classList.remove("ready");
+      }
+    } catch (e) {
+      Logger.error("Refresh failed: " + e.message);
     }
   }
 
@@ -1112,6 +1130,13 @@ class LexiconApp {
       }
     }
 
+    // Remove stale elements
+    for (const el of Array.from(scatter.children)) {
+      if (!nodes.has(el.dataset.term)) {
+        el.remove();
+      }
+    }
+
     this._updateAnchorVisuals();
   }
 
@@ -1133,7 +1158,14 @@ class LexiconApp {
     if (this.engine.nodeCount < 4) return;
 
     Logger.time("Cast");
-    const reading = this.renderer.cast(this.engine, this.anchoredTerm);
+    let reading;
+    try {
+      reading = this.renderer.cast(this.engine, this.anchoredTerm);
+    } catch (e) {
+      Logger.error("Cast failed: " + e.message);
+      Logger.timeEnd("Cast");
+      return;
+    }
     Logger.timeEnd("Cast");
 
     if (!reading) return;
