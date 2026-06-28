@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Lexicon</title>
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --void: #060608;
+  --deep: #0d0d15;
+  --surface: #13131e;
+  --border: #1e1e2c;
+  --text: #b2b2c4;
+  --dim: #45455a;
+  --bright: #d4d4e8;
+  --accent: #8a7ab0;
+  --accent-dim: rgba(138,122,176,0.18);
+  --accent-glow: rgba(138,122,176,0.08);
+}
+
+@keyframes fadeUp   { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+@keyframes fadeIn   { from{opacity:0} to{opacity:1} }
+@keyframes grain    { 0%,100%{transform:translate(0,0)} 25%{transform:translate(-1%,-1%)} 75%{transform:translate(1%,1%)} }
+@keyframes pulse    { 0%,100%{opacity:0.35} 50%{opacity:0.7} }
+@keyframes flicker  { 0%,100%{opacity:1} 48%{opacity:0.96} 50%{opacity:0.82} 52%{opacity:0.97} }
+@keyframes sealIn   { from{opacity:0;letter-spacing:0.6em} to{opacity:1;letter-spacing:0.35em} }
+@keyframes sigilIn  { from{opacity:0;transform:scale(0.88) rotate(-6deg)} to{opacity:1;transform:scale(1) rotate(0deg)} }
+@keyframes termAppear{ from{opacity:0;transform:scale(0.7)} to{opacity:1;transform:scale(1)} }
+@keyframes vocabPulse{ 0%{transform:scale(1);text-shadow:0 0 0 rgba(138,122,176,0);color:inherit} 40%{transform:scale(1.18);text-shadow:0 0 14px rgba(138,122,176,0.55);color:var(--accent)} 100%{transform:scale(1);text-shadow:0 0 0 rgba(138,122,176,0);color:inherit} }
+
+html,body { width:100%;height:100%;overflow:hidden;background:var(--void);color:var(--text);font-family:'Garamond','Georgia',serif;font-size:16px;line-height:1.6; }
+
+body::before { content:"";position:fixed;inset:0;pointer-events:none;z-index:9999;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");animation:grain 12s steps(8) infinite;opacity:0.9; }
+
+#app { display:flex;flex-direction:column;height:100%; }
+
+/* Header */
+#header { display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1.5rem;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--deep); }
+#header h1 { font-family:'Consolas','Monaco',monospace;font-size:0.72rem;letter-spacing:0.25em;text-transform:uppercase;color:var(--dim);font-weight:normal; }
+#header-left { display:flex;align-items:center;gap:0.75rem; }
+#header-right { font-family:'Consolas','Monaco',monospace;font-size:0.62rem;color:var(--dim);letter-spacing:0.1em; }
+.header-btn { background:transparent;border:none;color:var(--dim);cursor:pointer;font-family:'Consolas','Monaco',monospace;font-size:0.72rem;letter-spacing:0.2em;transition:color 0.3s; }
+.header-btn:hover { color:var(--accent); }
+
+/* Main layout */
+#main { flex:1;display:flex;overflow:hidden; }
+
+/* ─── HISTORY SIDEBAR ─── */
+#history-sidebar { width:220px;flex-shrink:0;border-right:1px solid var(--border);background:var(--deep);display:flex;flex-direction:column;overflow:hidden;transition:width 0.35s ease,opacity 0.35s ease, border-color 0.35s; }
+#history-sidebar.collapsed { width:0;opacity:0;border-right-color:transparent; }
+#history-header { padding:0.75rem 1rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-family:'Consolas','Monaco',monospace;font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--dim);flex-shrink:0; }
+#history-close { background:transparent;border:none;color:var(--dim);cursor:pointer;font-size:0.7rem;transition:color 0.2s; }
+#history-close:hover { color:var(--accent); }
+#history-list { flex:1;overflow-y:auto;padding:0.5rem; }
+.history-item { padding:0.6rem 0.5rem;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.2s; }
+.history-item:hover { background:var(--surface); }
+.history-meta { font-family:'Consolas','Monaco',monospace;font-size:0.55rem;color:var(--accent);opacity:0.6;margin-bottom:0.25rem; }
+.history-sign { font-family:'Garamond','Georgia',serif;font-size:0.8rem;color:var(--text);font-style:italic;opacity:0.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.history-full { margin-top:0.5rem;padding:0.5rem;background:var(--void);border:1px solid var(--border);font-family:'Garamond','Georgia',serif;font-size:0.75rem;color:var(--dim);line-height:1.6;display:none; }
+.history-full.visible { display:block;animation:fadeIn 0.3s ease; }
+.history-full .h-line { margin-bottom:0.3rem; }
+.history-empty { padding:1rem 0.5rem;font-family:'Consolas','Monaco',monospace;font-size:0.6rem;color:var(--dim);opacity:0.4;text-align:center; }
+
+/* ─── LEFT: THE TABLE ─── */
+#table-panel { width:38%;display:flex;flex-direction:column;border-right:1px solid var(--border);background:var(--deep);flex-shrink:0; }
+
+#table-header { padding:1rem 1.5rem 0.5rem;font-family:'Consolas','Monaco',monospace;font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--dim); }
+
+/* Input area */
+#speak-zone { padding:0 1.25rem; }
+#speak-input {
+  width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);
+  padding:0.75rem 1rem;font-family:'Garamond','Georgia',serif;font-size:1rem;
+  resize:none;height:4.5rem;outline:none;border-radius:0;
+  transition:border-color 0.3s ease;line-height:1.5;
+}
+#speak-input:focus { border-color:var(--accent); }
+#speak-input::placeholder { color:var(--dim);font-style:italic;font-size:0.9rem; }
+
+#speak-hint { padding:0.35rem 1.25rem 0;font-family:'Consolas','Monaco',monospace;font-size:0.58rem;color:var(--dim);opacity:0.5;letter-spacing:0.05em; }
+
+/* Vocabulary scatter */
+#vocab-zone { flex:1;position:relative;margin:1rem 1.25rem;border:1px solid var(--border);background:rgba(6,6,8,0.5);overflow:hidden;min-height:0; }
+#vocab-scatter { position:absolute;inset:0; }
+.vocab-term {
+  position:absolute;white-space:nowrap;
+  font-family:'Garamond','Georgia',serif;
+  transition:opacity 0.4s ease, color 0.4s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+  animation:termAppear 0.5s ease forwards;
+  cursor:pointer;
+  user-select:none;
+  border:1px solid transparent;
+  padding:1px 4px;
+  border-radius:2px;
+}
+.vocab-term:hover { color:var(--bright) !important; }
+.vocab-term.anchored {
+  border-color:var(--accent);
+  background:var(--accent-dim);
+  box-shadow:0 0 10px var(--accent-glow);
+  color:var(--accent) !important;
+  z-index:15;
+}
+.vocab-term.highlighted { animation:vocabPulse 0.9s ease; z-index:20; }
+#vocab-empty { position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Consolas','Monaco',monospace;font-size:0.6rem;color:var(--dim);opacity:0.4;letter-spacing:0.1em;pointer-events:none; }
+
+/* Stats */
+#graph-stats { padding:0.5rem 1.25rem;font-family:'Consolas','Monaco',monospace;font-size:0.62rem;color:var(--dim);letter-spacing:0.06em;flex-shrink:0; }
+#graph-stats span { color:var(--accent);opacity:0.7; }
+
+/* Cast button */
+#cast-zone { padding:0.75rem 1.25rem 1.25rem;flex-shrink:0; }
+#cast-btn {
+  width:100%;background:transparent;border:1px solid var(--border);
+  color:var(--dim);padding:0.75rem;
+  font-family:'Consolas','Monaco',monospace;font-size:0.72rem;
+  cursor:not-allowed;transition:all 0.4s ease;
+  text-transform:uppercase;letter-spacing:0.2em;
+}
+#cast-btn.ready {
+  border-color:var(--accent);color:var(--accent);cursor:pointer;
+  animation:pulse 3s infinite;
+}
+#cast-btn.ready:hover { background:var(--accent-dim);animation:none;opacity:1; }
+#cast-btn.ready:active { transform:scale(0.98); }
+#cast-btn:disabled { opacity:0.35;cursor:not-allowed;animation:none; }
+
+/* ─── RIGHT: THE READING ─── */
+#reading-panel { flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative; }
+
+#reading-scroll { flex:1;overflow-y:auto;padding:2rem 3rem; }
+#reading-scroll::-webkit-scrollbar { width:3px; }
+#reading-scroll::-webkit-scrollbar-thumb { background:var(--border); }
+
+/* Pre-cast state */
+#reading-empty { display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:1.5rem;opacity:0.3; }
+#reading-empty .dash { font-size:2rem;color:var(--dim);animation:flicker 5s infinite; }
+#reading-empty .hint { font-family:'Consolas','Monaco',monospace;font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--dim); }
+
+/* Reading card */
+#reading-card { display:none; }
+#reading-card.visible { display:block; }
+
+.cast-number { font-family:'Consolas','Monaco',monospace;font-size:0.62rem;letter-spacing:0.25em;color:var(--accent);opacity:0.6;text-align:center;margin-bottom:0.25rem;animation:fadeIn 0.8s ease forwards; }
+#depth-label { font-family:'Consolas','Monaco',monospace;font-size:0.55rem;letter-spacing:0.25em;text-transform:uppercase;color:var(--dim);opacity:0.3;text-align:center;margin-bottom:1.25rem;animation:fadeIn 0.8s ease forwards; }
+
+/* Sigil */
+#sigil-wrap { display:flex;justify-content:center;margin-bottom:1.75rem;animation:sigilIn 1s ease 0.2s both; }
+#sigil-wrap svg { filter:drop-shadow(0 0 8px rgba(138,122,176,0.2)); }
+
+/* Sign */
+.reading-section-label { font-family:'Consolas','Monaco',monospace;font-size:0.55rem;letter-spacing:0.22em;text-transform:uppercase;color:var(--dim);opacity:0.45;margin-bottom:0.3rem; }
+.reading-sign { font-size:1.15rem;font-style:italic;color:var(--accent);letter-spacing:0.06em;text-align:center;padding:0.6rem 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:1.75rem;animation:fadeUp 0.6s ease 0.5s both; }
+
+/* Body */
+#reading-body { margin-bottom:1.5rem; }
+.body-line {
+  font-size:1rem;color:var(--text);line-height:1.8;padding:0.1rem 0;
+  opacity:0;animation:fadeUp 0.5s ease both;
+}
+
+/* Thread */
+.reading-rule { border:none;border-top:1px solid var(--border);margin:1.25rem 0;opacity:0;animation:fadeIn 0.5s ease both; }
+.reading-thread { font-size:0.95rem;font-style:italic;color:var(--dim);line-height:1.8;opacity:0;animation:fadeUp 0.5s ease both; }
+
+/* Seal */
+#seal-wrap { text-align:center;margin-top:2.5rem;margin-bottom:1rem;opacity:0;animation:sealIn 1.2s ease both; }
+.reading-seal { font-size:1.6rem;font-weight:300;letter-spacing:0.35em;color:var(--bright);text-transform:lowercase; }
+.seal-ornament { font-family:'Consolas','Monaco',monospace;font-size:0.55rem;color:var(--accent);letter-spacing:0.3em;opacity:0.45;display:block;margin-top:0.4rem; }
+
+/* Footer actions */
+#reading-footer { padding:0.75rem 3rem 1.25rem;gap:0.75rem;flex-shrink:0;border-top:1px solid var(--border);display:none;background:var(--deep); }
+#reading-footer.visible { display:flex; }
+
+.action-btn { background:transparent;border:1px solid var(--border);color:var(--dim);padding:0.4rem 1.2rem;font-family:'Consolas','Monaco',monospace;font-size:0.65rem;cursor:pointer;transition:all 0.3s;text-transform:uppercase;letter-spacing:0.1em; }
+.action-btn:hover { border-color:var(--accent);color:var(--accent); }
+.action-btn:active { transform:scale(0.98); }
+.action-btn.primary { border-color:var(--accent);color:var(--accent); }
+
+@media(max-width:720px) {
+  #history-sidebar { position:absolute;left:0;top:0;bottom:0;z-index:100;width:220px; }
+  #history-sidebar.collapsed { width:0; }
+  #table-panel { width:100%;height:45%;border-right:none;border-bottom:1px solid var(--border); }
+  #main { flex-direction:column; }
+  #reading-scroll { padding:1.25rem 1.5rem; }
+  #reading-footer { padding:0.75rem 1.5rem; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <div id="header-left">
+      <button id="history-toggle" class="header-btn" title="Toggle history">◈</button>
+      <h1>The Lexicon</h1>
+    </div>
+    <div id="header-right">combinatorial oracle</div>
+  </div>
+  <div id="main">
+    <!-- History Sidebar -->
+    <div id="history-sidebar" class="collapsed">
+      <div id="history-header">
+        <span>History</span>
+        <button id="history-close">✕</button>
+      </div>
+      <div id="history-list"></div>
+    </div>
+    <!-- Left: The Table -->
+    <div id="table-panel">
+      <div id="table-header">The Table</div>
+      <div id="speak-zone">
+        <textarea id="speak-input" placeholder="speak into the table..." rows="3" spellcheck="false"></textarea>
+      </div>
+      <div id="speak-hint">enter to speak &nbsp;·&nbsp; shift+enter for newline</div>
+      <div id="vocab-zone">
+        <div id="vocab-scatter"></div>
+        <div id="vocab-empty">vocabulary will appear here</div>
+      </div>
+      <div id="graph-stats">
+        <span id="stat-terms">0</span> terms &nbsp;·&nbsp; <span id="stat-clusters">0</span> currents
+      </div>
+      <div id="cast-zone">
+        <button id="cast-btn" disabled>4 terms to cast</button>
+      </div>
+    </div>
+    <!-- Right: The Reading -->
+    <div id="reading-panel">
+      <div id="reading-scroll">
+        <div id="reading-empty">
+          <div class="dash">—</div>
+          <div class="hint">speak first</div>
+        </div>
+        <div id="reading-card">
+          <div class="cast-number" id="cast-number"></div>
+          <div id="depth-label"></div>
+          <div id="sigil-wrap"><svg id="sigil-svg" width="160" height="160" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg"></svg></div>
+          <div class="reading-section-label" id="sign-label" style="text-align:center"></div>
+          <div class="reading-sign" id="reading-sign"></div>
+          <div id="reading-body"></div>
+          <hr class="reading-rule" id="reading-rule">
+          <div class="reading-section-label" id="thread-label"></div>
+          <div class="reading-thread" id="reading-thread"></div>
+          <div id="seal-wrap">
+            <div class="reading-seal" id="reading-seal"></div>
+            <span class="seal-ornament" id="seal-ornament"></span>
+          </div>
+        </div>
+      </div>
+      <div id="reading-footer">
+        <button class="action-btn primary" id="cast-again-btn">Cast Again</button>
+        <button class="action-btn" id="copy-btn">Copy Reading</button>
+        <button class="action-btn" id="clear-btn">Clear</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+// ═══════════════════════════════════════════════════════════
+// THE LEXICON v2 — Combinatorial Oracle (Production Revision)
+// ═══════════════════════════════════════════════════════════
+
+function stableHash(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function pick(arr, seed) {
+  if (!arr || !arr.length) return "—";
+  let h = 0;
+  const s = String(seed);
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h) + s.charCodeAt(i);
+    h |= 0;
+  }
+  return arr[Math.abs(h) % arr.length];
+}
+
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+function toRoman(n) {
+  if (n <= 0 || n > 39) return String(n);
+  const vals = [10, 9, 5, 4, 1], syms = ["X", "IX", "V", "IV", "I"];
+  let r = "";
+  let num = n;
+  for (let i = 0; i < vals.length; i++) {
+    while (num >= vals[i]) { r += syms[i]; num -= vals[i]; }
+  }
+  return r;
+}
+
+// ─── Semantic Engine ──────────────────────────────────────
+
+class SemanticEngine {
+  constructor() {
+    this.stopWords = new Set([
+      "the","a","an","is","are","was","were","be","been","being","have","has","had",
+      "do","does","did","will","would","could","should","may","might","must","shall",
+      "can","to","of","in","for","on","with","at","by","from","as","into","through",
+      "during","before","after","above","below","between","under","again","then","once",
+      "here","there","all","any","both","each","few","more","most","other","some","such",
+      "no","nor","not","only","own","same","so","than","too","very","just","and","but",
+      "if","or","because","until","while","this","that","these","those","i","me","my",
+      "we","our","you","your","he","him","his","she","her","it","its","they","them",
+      "their","what","which","who","how","why","when","where","s","t"
+    ]);
+    this.graph = new Map();
+    this.docFreq = new Map();
+    this.documents = 0;
+    this.totalTokens = 0;
+  }
+
+  tokenize(text) {
+    if (!text) return [];
+    let p = text.toLowerCase().normalize("NFC");
+    const C = {
+      "don't": "do not", "doesn't": "does not", "didn't": "did not",
+      "won't": "will not", "can't": "cannot", "isn't": "is not",
+      "i'm": "i am", "you're": "you are", "it's": "it is",
+      "they're": "they are", "i've": "i have", "i'll": "i will",
+      "let's": "let us", "that's": "that is", "there's": "there is"
+    };
+    for (const [c, e] of Object.entries(C)) {
+      const esc = c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      p = p.replace(new RegExp('\\b' + esc + '\\b', 'gi'), e);
+    }
+    p = p.replace(/[^a-z0-9\s'-]/g, " ").replace(/(?<!\w)[-']+|[-'](?!\w)/g, " ");
+    return p.split(/\s+/).filter(w => w.length > 1 && !this.stopWords.has(w));
+  }
+
+  addText(text) {
+    const toks = this.tokenize(text);
+    if (!toks.length) return;
+    this.documents++;
+    this.totalTokens += toks.length;
+    const uniq = new Set(toks);
+    for (const w of uniq) this.docFreq.set(w, (this.docFreq.get(w) || 0) + 1);
+    for (const w of toks) {
+      if (!this.graph.has(w)) this.graph.set(w, { frequency: 0, neighbors: new Map(), idf: 0 });
+      this.graph.get(w).frequency++;
+    }
+    const W = 4;
+    for (let i = 0; i < toks.length; i++) {
+      const nd = this.graph.get(toks[i]);
+      const s = Math.max(0, i - W), e = Math.min(toks.length - 1, i + W);
+      for (let j = s; j <= e; j++) {
+        if (i === j) continue;
+        const nb = toks[j], wt = 1 / Math.abs(i - j);
+        nd.neighbors.set(nb, (nd.neighbors.get(nb) || 0) + wt);
+      }
+    }
+    for (const [w, nd] of this.graph) {
+      nd.idf = Math.log(this.documents / (this.docFreq.get(w) || 1));
+    }
+  }
+
+  textRank(damping = 0.85, iterations = 30, convergence = 0.0001) {
+    const nodes = Array.from(this.graph.keys());
+    if (!nodes.length) return [];
+
+    // Precompute out-weights to avoid O(degree²) inner loops
+    const outWeights = new Map();
+    for (const node of nodes) {
+      const nnd = this.graph.get(node);
+      outWeights.set(node, Array.from(nnd.neighbors.values()).reduce((a, b) => a + b, 0));
+    }
+
+    const sc = new Map();
+    for (const n of nodes) sc.set(n, 1);
+
+    for (let it = 0; it < iterations; it++) {
+      let maxD = 0;
+      const ns = new Map();
+      for (const node of nodes) {
+        const nd = this.graph.get(node);
+        let sum = 0;
+        for (const [nb, wt] of nd.neighbors) {
+          const out = outWeights.get(nb) || 0;
+          if (out > 0) sum += (wt / out) * (sc.get(nb) || 0);
+        }
+        const s = (1 - damping) + damping * sum;
+        ns.set(node, s);
+        maxD = Math.max(maxD, Math.abs(s - (sc.get(node) || 0)));
+      }
+      for (const [k, v] of ns) sc.set(k, v);
+      if (maxD < convergence) break;
+    }
+
+    return Array.from(sc.entries())
+      .map(([word, score]) => {
+        const nd = this.graph.get(word);
+        return { word, score, frequency: nd.frequency, tfidf: nd.frequency * nd.idf };
+      })
+      .sort((a, b) => b.score - a.score);
+  }
+
+  getClusters(iterations = 12) {
+    const nodes = Array.from(this.graph.keys());
+    if (!nodes.length) return [];
+    const labels = new Map();
+    for (const n of nodes) labels.set(n, n);
+    for (let it = 0; it < iterations; it++) {
+      let changed = false;
+      const order = nodes.slice().sort(() => Math.random() - 0.5);
+      for (const node of order) {
+        const nd = this.graph.get(node);
+        if (!nd.neighbors.size) continue;
+        const lc = new Map();
+        for (const [nb, wt] of nd.neighbors) {
+          const l = labels.get(nb);
+          if (l) lc.set(l, (lc.get(l) || 0) + wt);
+        }
+        let best = labels.get(node), bestC = -1;
+        for (const [l, c] of lc) {
+          if (c > bestC || (c === bestC && l < best)) { bestC = c; best = l; }
+        }
+        if (best !== labels.get(node)) { labels.set(node, best); changed = true; }
+      }
+      if (!changed) break;
+    }
+    const comm = new Map();
+    for (const [n, l] of labels) {
+      if (!comm.has(l)) comm.set(l, []);
+      comm.get(l).push(n);
+    }
+    return Array.from(comm.values()).filter(c => c.length > 1).sort((a, b) => b.length - a.length);
+  }
+
+  semanticSimilarity(w1, w2) {
+    const n1 = this.graph.get(w1), n2 = this.graph.get(w2);
+    if (!n1 || !n2) return 0;
+    const wt = (nd, nb) => {
+      const w = nd.neighbors.get(nb) || 0, idf = this.graph.get(nb)?.idf || 1;
+      return w * idf;
+    };
+    let dot = 0, m1 = 0, m2 = 0;
+    for (const [nb] of n1.neighbors) {
+      const w = wt(n1, nb);
+      m1 += w * w;
+    }
+    for (const [nb] of n2.neighbors) {
+      const w = wt(n2, nb);
+      m2 += w * w;
+    }
+    for (const [nb] of n1.neighbors) {
+      if (n2.neighbors.has(nb)) dot += wt(n1, nb) * wt(n2, nb);
+    }
+    return (m1 && m2) ? dot / (Math.sqrt(m1) * Math.sqrt(m2)) : 0;
+  }
+
+  getTopTerms(n = 8) {
+    return Array.from(this.graph.entries())
+      .map(([w, nd]) => ({ word: w, frequency: nd.frequency, tfidf: nd.frequency * nd.idf }))
+      .sort((a, b) => b.tfidf - a.tfidf).slice(0, n);
+  }
+
+  getNode(w) { return this.graph.get(w); }
+  get nodeCount() { return this.graph.size; }
+}
+
+// ─── Lexicon Renderer ─────────────────────────────────────
+
+class LexiconRenderer {
+  constructor() {
+    this.castCount = 0;
+    this.verbs = ["bleeds","sinks","pulls","tears","holds","burns","fades","drifts","breaks","turns","settles","presses","opens","closes","falls","rises","twists","stills","carries","echoes","bends","waits","watches","keeps","finds","loses","marks","folds","runs","stays","returns","shifts","spreads","dissolves","empties","gathers","follows"];
+    this.preps = ["through","into","under","over","beneath","against","toward","beyond","within","around","beside","before","after","between","without","despite","past","inside"];
+    this.temporals = ["before","after","when","until","since","as though","while","once","wherever"];
+    this.abstracts = ["absence","longing","dread","weight","void","gravity","entropy","inertia","decay","erosion","friction","resistance","tension","dissolution","cessation","rupture","breach","accretion","collapse","drift","remainder","pressure","static","threshold"];
+    this.sounds    = ["static","drip","hum","crack","whisper","echo","feedback","rattle","hiss","thrum","groan","creak","sigh","wail","drone","resonance","silence","white noise"];
+    this.sensations= ["tremor","vertigo","chill","numbness","tension","weight","pressure","derealization","tinnitus","paresthesia","pallor","spasm","drag"];
+    this.timeWords = ["dusk","midnight","twilight","3 AM","closing time","the interregnum","the liminal","the gloaming","the delay","the ellipsis","the comma","the witching hour","the blue hour","an eternity"];
+    this.lore = ["the city forgot its own name decades ago","every street leads back to where you started","the rain here never quite reaches the ground","there used to be more color, once","the clocks all stopped at different times","the old district doesn't exist on any map","the shadows here have a different weight","the maps are redrawn each night and no one admits to it","there are stairs that go down further than the building is tall","you can leave the city but it doesn't always let you arrive elsewhere","the streetlights turn on when they hear you coming","the wind carries conversations that ended long ago","the city dreams and you are a small willing part of the dream","your reflection arrives a moment after you do","somewhere a phone has been ringing since before you were born"];
+    this.loops = ["but what happened to the others?","and yet the lights still flicker","someone is watching from the upper floors","but the pattern doesn't quite fit","yet footsteps echo where no one walks","but why does the echo arrive before the sound?","who is left to read these signs?","yet the map keeps changing when I look away","and the numbers on the doors are wrong","but the reflection is still standing there","and the radio plays songs from next week"];
+
+    this.formulas = [
+      (a, b, e, s) => a + " " + pick(this.verbs, s+"v0") + " " + pick(this.preps, s+"p0") + " " + b,
+      (a, b, e, s) => "the " + a + " of " + b,
+      (a, b, e, s) => a + " — " + pick(this.abstracts, s+"ab0") + " — " + b,
+      (a, b, e, s) => b + " " + pick(this.temporals, s+"t0") + " " + a + " " + pick(this.verbs, s+"v1"),
+      (a, b, e, s) => "what " + a + " " + pick(this.verbs, s+"v2") + ": " + b,
+      (a, b, e, s) => pick(this.sounds, s+"sn0") + " — " + a + " " + pick(this.preps, s+"p1") + " " + b,
+      (a, b, e, s) => a + " " + pick(this.sensations, s+"se0") + ", " + b + " " + pick(this.verbs, s+"v3"),
+      (a, b, e, s) => b + " and " + a + " " + pick(this.verbs, s+"v4"),
+      (a, b, e, s) => a + " " + pick(this.verbs, s+"v5") + " when " + pick(this.lore, s+"lo0"),
+      (a, b, e, s) => pick(this.abstracts, s+"ab1") + ": " + a + " / " + b,
+      (a, b, e, s) => a + " " + pick(this.preps, s+"p2") + " " + b + " — " + pick(this.abstracts, s+"ab2"),
+      (a, b, e, s) => "between " + a + " and " + b + ", " + pick(this.sounds, s+"sn1"),
+    ];
+  }
+
+  _formula(fIdx, a, b, seed) {
+    const f = this.formulas[Math.abs(fIdx) % this.formulas.length];
+    try { return f(a, b, null, seed); } catch (_) { return a + " — " + b; }
+  }
+
+  cast(engine, anchor = null) {
+    this.castCount++;
+    const N = this.castCount;
+    const seed = "C" + N + "_" + engine.totalTokens + "_" + engine.nodeCount + "_" + Date.now();
+
+    const ranked = engine.textRank();
+    if (ranked.length < 3) return null;
+
+    const clusters = engine.getClusters(15);
+
+    // Axis: highest TextRank, or anchor if set
+    let axis = ranked[0].word;
+    if (anchor) axis = anchor;
+
+    // Bridge: among top-10, maximally connected to cluster heads
+    const clusterHeads = clusters.slice(0, 6).map(c => c[0]).filter(Boolean);
+    let bridge = ranked[1]?.word || axis;
+    let maxBridgeScore = -1;
+    for (const t of ranked.slice(0, Math.min(10, ranked.length))) {
+      if (t.word === axis) continue;
+      let score = 0;
+      for (const h of clusterHeads) {
+        if (h !== t.word) score += engine.semanticSimilarity(t.word, h);
+      }
+      if (score > maxBridgeScore) { maxBridgeScore = score; bridge = t.word; }
+    }
+    if (bridge === axis && ranked[1]) bridge = ranked[1].word;
+    if (bridge === axis) bridge = ranked.find(r => r.word !== axis)?.word || axis;
+
+    // Outlier: term in top-12 least similar to axis
+    let outlier = ranked[Math.min(ranked.length - 1, 5)].word;
+    let minSim = Infinity;
+    for (const t of ranked.slice(0, Math.min(12, ranked.length))) {
+      if (t.word === axis) continue;
+      const sim = engine.semanticSimilarity(axis, t.word);
+      if (sim < minSim) { minSim = sim; outlier = t.word; }
+    }
+    if (outlier === axis) outlier = ranked[ranked.length - 1]?.word || axis;
+
+    // Pool of user terms (unique, ordered by rank)
+    const pool = [];
+    const seen = new Set([axis, bridge, outlier]);
+    for (const r of ranked) {
+      if (!seen.has(r.word)) { pool.push(r.word); seen.add(r.word); }
+    }
+    const T = i => pool[i % Math.max(1, pool.length)] || ranked[i % ranked.length]?.word || axis;
+
+    const sign   = this._buildSign(axis, bridge, seed);
+    const body   = this._buildBody(ranked, clusters, axis, bridge, outlier, T, seed, engine.nodeCount);
+    const thread = this._buildThread(ranked, outlier, seed, engine.nodeCount);
+    const seal   = outlier;
+
+    return { castNumber: N, sign, body, thread, seal, axis, bridge, outlier, termCount: ranked.length, clusterCount: clusters.length, ranked, clusters, seed };
+  }
+
+  _buildSign(axis, bridge, seed) {
+    const forms = [
+      axis + " / " + bridge,
+      "the " + axis + " of " + bridge,
+      axis + " — " + bridge,
+      bridge + " " + pick(this.preps, seed + "sp") + " " + axis,
+      axis + " and " + bridge,
+      pick(this.sounds, seed + "ssn") + " — " + axis + " / " + bridge,
+    ];
+    return pick(forms, seed + "sign");
+  }
+
+  _buildBody(ranked, clusters, axis, bridge, outlier, T, seed, termCount) {
+    const usedFormulas = new Set();
+    const pickFormula = (key) => {
+      let h = stableHash(seed + key);
+      let idx = Math.abs(h) % this.formulas.length;
+      let attempts = 0;
+      while (usedFormulas.has(idx) && attempts < this.formulas.length) {
+        idx = (idx + 1) % this.formulas.length;
+        attempts++;
+      }
+      usedFormulas.add(idx);
+      return idx;
+    };
+
+    const lines = [];
+
+    // DEPTH: fragmentary (< 8 terms)
+    if (termCount < 8) {
+      const ca0 = clusters[0]?.[0] || ranked[0]?.word || axis;
+      let cb0 = clusters[1]?.[0] || ranked[1]?.word || bridge;
+      if (cb0 === ca0) cb0 = outlier;
+      lines.push(this._formula(pickFormula("f0"), ca0, cb0, seed + "L0") + "?");
+
+      const ca1 = bridge;
+      const cb1 = T(0);
+      lines.push(this._formula(pickFormula("f1"), ca1, cb1, seed + "L1") + "...");
+      return lines;
+    }
+
+    // Line 1: Two largest cluster heads interact
+    const ca0 = clusters[0]?.[0] || ranked[0]?.word || axis;
+    let cb0 = clusters[1]?.[0] || ranked[1]?.word || bridge;
+    if (cb0 === ca0) cb0 = outlier;
+    lines.push(this._formula(pickFormula("f0"), ca0, cb0, seed + "L0"));
+
+    // Line 2: Bridge node with ranked term
+    const ca1 = bridge;
+    const cb1 = T(0);
+    lines.push(this._formula(pickFormula("f1"), ca1, cb1, seed + "L1"));
+
+    // Line 3: Lore with user term
+    const loreStr = pick(this.lore, seed + "lore");
+    const groundTerm = clusters[0]?.[1] || T(1);
+    lines.push(loreStr + " — " + groundTerm);
+
+    // Line 4: Third cluster vs timeWord
+    const ca3 = clusters[2]?.[0] || T(2);
+    const timeW = pick(this.timeWords, seed + "tw");
+    lines.push(this._formula(pickFormula("f3"), ca3, timeW, seed + "L3"));
+
+    // Line 5: Outlier vs pool term
+    const ca4 = outlier;
+    const cb4 = T(3);
+    lines.push(this._formula(pickFormula("f4"), ca4, cb4, seed + "L4"));
+
+    // DEPTH: dense (20+ terms) — extra cross-cluster line
+    if (termCount >= 20) {
+      const c1 = clusters[0]?.[0] || T(0);
+      const c2 = clusters[1]?.[0] || T(1);
+      lines.push("the " + c1 + " and " + c2 + " currents orbit " + axis);
+    }
+
+    return lines;
+  }
+
+  _buildThread(ranked, outlier, seed, termCount) {
+    const mid = ranked[Math.floor(ranked.length / 2)]?.word || outlier;
+    const temporal = pick(this.temporals, seed + "thr_t");
+    const loop = pick(this.loops, seed + "thr_l");
+    if (termCount < 8) {
+      return mid + " " + temporal + " " + outlier + "?";
+    }
+    return mid + " " + temporal + " " + outlier + " — " + loop;
+  }
+}
+
+// ─── Sigil Builder ────────────────────────────────────────
+
+function buildSigil(ranked, clusters, engine) {
+  const SIZE = 160, cx = 80, cy = 80, R = 50;
+  const n = Math.min(clusters.length, 6);
+  let svg = `<circle cx="${cx}" cy="${cy}" r="${SIZE/2 - 6}" fill="none" stroke="#8a7ab0" stroke-width="0.3" opacity="0.1"/>`;
+  if (n === 0) {
+    svg += `<circle cx="${cx}" cy="${cy}" r="3" fill="#8a7ab0" opacity="0.5"/>`;
+    return svg;
+  }
+  const pts = clusters.slice(0, n).map((cluster, i) => {
+    const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+    const r = R * (0.72 + Math.min(0.28, cluster.length * 0.05));
+    return { x: cx + Math.cos(angle) * r, y: cy + Math.sin(angle) * r, cluster, i };
+  });
+  for (let i = 0; i < pts.length; i++) {
+    for (let j = i + 1; j < pts.length; j++) {
+      const dist = j - i;
+      const wrap = (i === 0 && j === pts.length - 1);
+      const sim = engine.semanticSimilarity(pts[i].cluster[0] || "", pts[j].cluster[0] || "");
+      const draw = dist === 1 || wrap || sim > 0.05;
+      if (draw) {
+        const op = (dist === 1 || wrap) ? 0.13 : Math.min(0.08, sim * 0.4);
+        svg += `<line x1="${pts[i].x.toFixed(1)}" y1="${pts[i].y.toFixed(1)}" x2="${pts[j].x.toFixed(1)}" y2="${pts[j].y.toFixed(1)}" stroke="#8a7ab0" stroke-width="0.5" opacity="${op.toFixed(2)}" stroke-dasharray="2,5"/>`;
+      }
+    }
+  }
+  for (const pt of pts) {
+    svg += `<line x1="${cx}" y1="${cy}" x2="${pt.x.toFixed(1)}" y2="${pt.y.toFixed(1)}" stroke="#8a7ab0" stroke-width="0.4" opacity="0.18"/>`;
+  }
+  for (const pt of pts) {
+    const nodeR = clamp(2.5 + pt.cluster.length * 0.55, 2.5, 8);
+    svg += `<circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="${nodeR.toFixed(1)}" fill="none" stroke="#8a7ab0" stroke-width="0.75" opacity="0.4"/>`;
+    svg += `<circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="1.2" fill="#8a7ab0" opacity="0.55"/>`;
+  }
+  svg += `<circle cx="${cx}" cy="${cy}" r="4.5" fill="none" stroke="#8a7ab0" stroke-width="0.9" opacity="0.65"/>`;
+  svg += `<circle cx="${cx}" cy="${cy}" r="1.5" fill="#8a7ab0" opacity="0.85"/>`;
+  return svg;
+}
+
+// ─── Reading Animator ─────────────────────────────────────
+
+function animateReading(reading) {
+  const BASE_DELAY  = 0.5;
+  const LINE_STRIDE = 0.22;
+
+  const resetAnim = (id, delay) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.animation = 'none';
+    el.style.animationDelay = '';
+    void el.offsetHeight;
+    el.style.animation = '';
+    if (delay !== undefined) el.style.animationDelay = delay + 's';
+  };
+
+  resetAnim('cast-number', 0.1);
+  resetAnim('depth-label', 0.15);
+  resetAnim('sigil-wrap', 0.25);
+
+  resetAnim('reading-sign', 0.45);
+
+  document.getElementById('sign-label').textContent = 'sign';
+  document.getElementById('sign-label').style.opacity = '0';
+  setTimeout(() => {
+    const lbl = document.getElementById('sign-label');
+    lbl.style.transition = 'opacity 0.5s';
+    lbl.style.opacity = '0.45';
+  }, 450);
+
+  const bodyEl = document.getElementById('reading-body');
+  bodyEl.innerHTML = '';
+  reading.body.forEach((line, i) => {
+    const el = document.createElement('div');
+    el.className = 'body-line';
+    el.textContent = line;
+    const delay = (BASE_DELAY + i * LINE_STRIDE).toFixed(2);
+    el.style.animationDelay = delay + 's';
+    bodyEl.appendChild(el);
+  });
+
+  const ruleDelay  = (BASE_DELAY + reading.body.length * LINE_STRIDE + 0.15).toFixed(2);
+  const threadDelay = (parseFloat(ruleDelay) + 0.2).toFixed(2);
+
+  resetAnim('reading-rule', ruleDelay);
+  resetAnim('reading-thread', threadDelay);
+
+  document.getElementById('thread-label').textContent = 'thread';
+  document.getElementById('thread-label').style.opacity = '0';
+  setTimeout(() => {
+    const lbl = document.getElementById('thread-label');
+    lbl.style.transition = 'opacity 0.5s';
+    lbl.style.opacity = '0.45';
+  }, parseFloat(threadDelay) * 1000);
+
+  const sealDelay = (parseFloat(threadDelay) + 0.5).toFixed(2);
+  resetAnim('seal-wrap', sealDelay);
+  document.getElementById('seal-ornament').textContent = '◈';
+}
+
+// ─── Main Application ─────────────────────────────────────
+
+class LexiconApp {
+  constructor() {
+    this.engine   = new SemanticEngine();
+    this.renderer = new LexiconRenderer();
+    this.lastReading = null;
+    this.history = [];
+    this.anchoredTerm = null;
+
+    this.inputEl    = document.getElementById("speak-input");
+    this.castBtn    = document.getElementById("cast-btn");
+    this.statTerms  = document.getElementById("stat-terms");
+    this.statClust  = document.getElementById("stat-clusters");
+
+    this.readingEmpty  = document.getElementById("reading-empty");
+    this.readingCard   = document.getElementById("reading-card");
+    this.readingFooter = document.getElementById("reading-footer");
+
+    this._bindEvents();
+  }
+
+  _bindEvents() {
+    this.inputEl.addEventListener("keydown", e => {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); this._speak(); }
+    });
+    this.castBtn.addEventListener("click", () => this._cast());
+    document.getElementById("cast-again-btn").addEventListener("click", () => this._cast());
+    document.getElementById("copy-btn").addEventListener("click", () => this._copy());
+    document.getElementById("clear-btn").addEventListener("click", () => this._clear());
+
+    document.getElementById("history-toggle").addEventListener("click", () => {
+      document.getElementById("history-sidebar").classList.toggle("collapsed");
+    });
+    document.getElementById("history-close").addEventListener("click", () => {
+      document.getElementById("history-sidebar").classList.add("collapsed");
+    });
+
+    document.getElementById("vocab-scatter").addEventListener("click", (e) => {
+      const term = e.target.closest(".vocab-term");
+      if (term) this._toggleAnchor(term.dataset.term);
+    });
+  }
+
+  _speak() {
+    const text = this.inputEl.value.trim();
+    if (!text) return;
+    this.inputEl.value = "";
+    this.inputEl.style.height = "";
+
+    this.engine.addText(text);
+    this._refresh();
+  }
+
+  _refresh() {
+    const ranked = this.engine.textRank();
+    const clusters = this.engine.getClusters(12);
+    const n = this.engine.nodeCount;
+
+    this.statTerms.textContent = n;
+    this.statClust.textContent = clusters.length;
+
+    this._renderVocabScatter(ranked);
+
+    const btn = this.castBtn;
+    if (n >= 4) {
+      btn.textContent = "C A S T";
+      btn.disabled = false;
+      btn.classList.add("ready");
+    } else {
+      btn.textContent = (4 - n) + " more term" + (4 - n !== 1 ? "s" : "") + " to cast";
+      btn.disabled = true;
+      btn.classList.remove("ready");
+    }
+  }
+
+  _renderVocabScatter(topRanked) {
+    const scatter = document.getElementById("vocab-scatter");
+    const empty   = document.getElementById("vocab-empty");
+    const nodes   = this.engine.graph;
+
+    if (!nodes.size) { scatter.innerHTML = ""; empty.style.display = "flex"; return; }
+    empty.style.display = "none";
+
+    const maxFreq = Math.max(1, ...Array.from(nodes.values()).map(n => n.frequency));
+    const topSet  = new Set(topRanked.slice(0, 4).map(t => t.word));
+    const existing = new Set(Array.from(scatter.children).map(c => c.dataset.term));
+
+    for (const [word, nd] of nodes) {
+      if (existing.has(word)) continue;
+      const el = document.createElement("div");
+      el.className = "vocab-term";
+      el.dataset.term = word;
+      el.textContent = word;
+      el.title = "Click to anchor";
+
+      const hx = stableHash(word + "x") % 82 + 5;
+      const hy = stableHash(word + "y") % 82 + 5;
+      el.style.left = hx + "%";
+      el.style.top  = hy + "%";
+
+      const normFreq = nd.frequency / maxFreq;
+      el.style.fontSize = (0.62 + normFreq * 0.33).toFixed(2) + "rem";
+
+      const normIdf = Math.min(1, nd.idf / 3);
+      el.style.opacity = (0.22 + normIdf * 0.53).toFixed(2);
+
+      el.style.color = topSet.has(word) ? "var(--accent)" : "var(--dim)";
+      scatter.appendChild(el);
+    }
+
+    for (const el of scatter.children) {
+      const word = el.dataset.term;
+      if (!word) continue;
+      const isTop = topSet.has(word);
+      el.style.color = isTop ? "var(--accent)" : "var(--dim)";
+      const nd = nodes.get(word);
+      if (nd) {
+        const normFreq = nd.frequency / maxFreq;
+        el.style.fontSize = (0.62 + normFreq * 0.33).toFixed(2) + "rem";
+      }
+    }
+
+    this._updateAnchorVisuals();
+  }
+
+  _toggleAnchor(word) {
+    if (this.anchoredTerm === word) {
+      this.anchoredTerm = null;
+    } else {
+      this.anchoredTerm = word;
+    }
+    this._updateAnchorVisuals();
+  }
+
+  _updateAnchorVisuals() {
+    const scatter = document.getElementById("vocab-scatter");
+    for (const el of scatter.children) {
+      el.classList.toggle("anchored", el.dataset.term === this.anchoredTerm);
+    }
+  }
+
+  _cast() {
+    if (this.engine.nodeCount < 4) return;
+
+    const reading = this.renderer.cast(this.engine, this.anchoredTerm);
+    if (!reading) return;
+
+    this.lastReading = reading;
+
+    if (this.anchoredTerm) {
+      this.anchoredTerm = null;
+      this._updateAnchorVisuals();
+    }
+
+    document.getElementById("cast-number").textContent = "◈  " + toRoman(reading.castNumber) + "  ◈";
+
+    const depthEl = document.getElementById("depth-label");
+    if (this.engine.nodeCount < 8) depthEl.textContent = "fragment";
+    else if (this.engine.nodeCount < 20) depthEl.textContent = "standard";
+    else depthEl.textContent = "dense";
+
+    document.getElementById("reading-sign").textContent   = reading.sign;
+    document.getElementById("reading-thread").textContent = reading.thread;
+    document.getElementById("reading-seal").textContent   = reading.seal;
+
+    const sigilSvg = document.getElementById("sigil-svg");
+    sigilSvg.innerHTML = buildSigil(reading.ranked, reading.clusters, this.engine);
+
+    this.readingEmpty.style.display = "none";
+    this.readingCard.classList.add("visible");
+    this.readingFooter.classList.add("visible");
+
+    const card = document.getElementById("reading-card");
+    card.style.display = "none";
+    void card.offsetHeight;
+    card.style.display = "";
+
+    animateReading(reading);
+
+    this._highlightVocab(reading);
+
+    this.history.unshift({
+      castNumber: reading.castNumber,
+      date: new Date(),
+      sign: reading.sign,
+      reading: reading
+    });
+    if (this.history.length > 5) this.history.pop();
+    this._renderHistory();
+
+    document.getElementById("reading-scroll").scrollTop = 0;
+  }
+
+  _highlightVocab(reading) {
+    const allText = [reading.sign, ...reading.body, reading.thread, reading.seal].join(" ").toLowerCase();
+    const scatter = document.getElementById("vocab-scatter");
+    for (const el of scatter.children) {
+      const word = el.dataset.term;
+      if (!word) continue;
+      try {
+        const esc = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const re = new RegExp('\\b' + esc + '\\b');
+        if (re.test(allText)) {
+          el.classList.add("highlighted");
+          setTimeout(() => el.classList.remove("highlighted"), 1200);
+        }
+      } catch (_) {}
+    }
+  }
+
+  _renderHistory() {
+    const list = document.getElementById("history-list");
+    list.innerHTML = "";
+    if (!this.history.length) {
+      const empty = document.createElement("div");
+      empty.className = "history-empty";
+      empty.textContent = "no readings yet";
+      list.appendChild(empty);
+      return;
+    }
+    this.history.forEach((entry, i) => {
+      const item = document.createElement("div");
+      item.className = "history-item";
+
+      const meta = document.createElement("div");
+      meta.className = "history-meta";
+      const dateStr = entry.date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+      meta.textContent = `◈ ${toRoman(entry.castNumber)} · ${dateStr}`;
+      item.appendChild(meta);
+
+      const sign = document.createElement("div");
+      sign.className = "history-sign";
+      sign.textContent = entry.sign;
+      item.appendChild(sign);
+
+      const full = document.createElement("div");
+      full.className = "history-full";
+      full.id = `history-full-${i}`;
+
+      entry.reading.body.forEach(l => {
+        const line = document.createElement("div");
+        line.className = "h-line";
+        line.textContent = l;
+        full.appendChild(line);
+      });
+
+      const threadLine = document.createElement("div");
+      threadLine.className = "h-line";
+      threadLine.style.marginTop = "0.5rem";
+      threadLine.style.fontStyle = "italic";
+      threadLine.textContent = entry.reading.thread;
+      full.appendChild(threadLine);
+
+      const sealLine = document.createElement("div");
+      sealLine.className = "h-line";
+      sealLine.style.marginTop = "0.3rem";
+      sealLine.style.color = "var(--accent)";
+      sealLine.textContent = entry.reading.seal;
+      full.appendChild(sealLine);
+
+      item.appendChild(full);
+      item.addEventListener("click", () => full.classList.toggle("visible"));
+      list.appendChild(item);
+    });
+  }
+
+  _copy() {
+    if (!this.lastReading) return;
+    const r = this.lastReading;
+    const lines = [
+      "THE LEXICON — Cast " + toRoman(r.castNumber),
+      "",
+      r.sign.toUpperCase(),
+      "",
+      ...r.body,
+      "",
+      r.thread,
+      "",
+      r.seal.toUpperCase(),
+      "",
+      "─".repeat(36),
+      r.termCount + " terms · " + r.clusterCount + " currents · axis: " + r.axis,
+    ];
+    const text = lines.join("\n");
+
+    const writeFallback = () => {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.cssText = "position:fixed;inset:0;opacity:0;pointer-events:none;";
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand("copy");
+      } catch (err) {
+        console.error("Copy failed:", err);
+      }
+      document.body.removeChild(ta);
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(writeFallback);
+    } else {
+      writeFallback();
+    }
+
+    const btn = document.getElementById("copy-btn");
+    const orig = btn.textContent;
+    btn.textContent = "Copied";
+    btn.classList.add("primary");
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove("primary"); }, 1500);
+  }
+
+  _clear() {
+    this.engine   = new SemanticEngine();
+    this.renderer = new LexiconRenderer();
+    this.lastReading = null;
+    this.history = [];
+    this.anchoredTerm = null;
+    document.getElementById("vocab-scatter").innerHTML = "";
+    document.getElementById("vocab-empty").style.display = "flex";
+    this.readingCard.classList.remove("visible");
+    this.readingFooter.classList.remove("visible");
+    this.readingEmpty.style.display = "";
+    this.statTerms.textContent  = "0";
+    this.statClust.textContent  = "0";
+    const btn = this.castBtn;
+    btn.textContent = "4 terms to cast";
+    btn.disabled = true;
+    btn.classList.remove("ready");
+    this._renderHistory();
+    this.inputEl.focus();
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const app = new LexiconApp();
+  document.getElementById("speak-input").focus();
+});
+</script>
+</body>
+</html>
