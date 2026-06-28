@@ -110,13 +110,15 @@
     this.lastReading = null;
     this.history = [];
     this.anchoredTerm = null;
-    document.getElementById("vocab-scatter").innerHTML = "";
+    const scatter = document.getElementById("vocab-scatter");
+    while (scatter.lastChild) scatter.removeChild(scatter.lastChild);
     document.getElementById("vocab-empty").style.display = "flex";
     this.readingCard.classList.remove("visible");
     this.readingFooter.classList.remove("visible");
     this.readingEmpty.style.display = "";
     this.statTerms.textContent  = "0";
     this.statClust.textContent  = "0";
+    if (this.animator) this.animator.clearAll();
     const btn = this.castBtn;
     btn.textContent = "4 terms to cast";
     btn.disabled = true;
