@@ -1,0 +1,135 @@
+
+  _renderHistory() {
+    const list = document.getElementById("history-list");
+    list.textContent = "";
+    if (!this.history.length) {
+      const empty = document.createElement("div");
+      empty.className = "history-empty";
+      empty.textContent = "no readings yet";
+      list.appendChild(empty);
+      return;
+    }
+    this.history.forEach((entry, i) => {
+      const item = document.createElement("div");
+      item.className = "history-item";
+      item.setAttribute("role", "button");
+      item.setAttribute("tabindex", "0");
+
+      const meta = document.createElement("div");
+      meta.className = "history-meta";
+      const dateStr = entry.date.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+      meta.textContent = `◈ ${toRoman(entry.castNumber)} · ${dateStr}`;
+      item.appendChild(meta);
+
+      const sign = document.createElement("div");
+      sign.className = "history-sign";
+      sign.textContent = entry.sign;
+      item.appendChild(sign);
+
+      const full = document.createElement("div");
+      full.className = "history-full";
+      full.id = `history-full-${i}`;
+
+      entry.reading.body.forEach(l => {
+        const line = document.createElement("div");
+        line.className = "h-line";
+        line.textContent = l;
+        full.appendChild(line);
+      });
+
+      const threadLine = document.createElement("div");
+      threadLine.className = "h-line";
+      threadLine.style.marginTop = "0.5rem";
+      threadLine.style.fontStyle = "italic";
+      threadLine.textContent = entry.reading.thread;
+      full.appendChild(threadLine);
+
+      const sealLine = document.createElement("div");
+      sealLine.className = "h-line";
+      sealLine.style.marginTop = "0.3rem";
+      sealLine.style.color = "var(--accent)";
+      sealLine.textContent = entry.reading.seal;
+      full.appendChild(sealLine);
+
+      item.appendChild(full);
+      item.addEventListener("click", () => full.classList.toggle("visible"));
+      item.addEventListener("keydown", e => { if (e.key === "Enter") full.classList.toggle("visible"); });
+      list.appendChild(item);
+    });
+  }
+
+  _copy() {
+    if (!this.lastReading) return;
+    const r = this.lastReading;
+    const lines = [
+      "THE LEXICON — Cast " + toRoman(r.castNumber),
+      "",
+      r.sign.toUpperCase(),
+      "",
+      ...r.body,
+      "",
+      r.thread,
+      "",
+      r.seal.toUpperCase(),
+      "",
+      "─".repeat(36),
+      r.termCount + " terms · " + r.clusterCount + " currents · axis: " + r.axis,
+    ];
+    const text = lines.join("\n");
+
+    const writeFallback = () => {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.cssText = "position:fixed;inset:0;opacity:0;pointer-events:none;";
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand("copy");
+      } catch (err) {
+        console.error("Copy failed:", err);
+      }
+      document.body.removeChild(ta);
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(writeFallback);
+    } else {
+      writeFallback();
+    }
+
+    const btn = document.getElementById("copy-btn");
+    const orig = btn.textContent;
+    btn.textContent = "Copied";
+    btn.classList.add("primary");
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove("primary"); }, 1500);
+  }
+
+  _clear() {
+    this.engine   = new SemanticEngine();
+    this.renderer = new LexiconRenderer();
+    this.lastReading = null;
+    this.history = [];
+    this.anchoredTerm = null;
+    document.getElementById("vocab-scatter").innerHTML = "";
+    document.getElementById("vocab-empty").style.display = "flex";
+    this.readingCard.classList.remove("visible");
+    this.readingFooter.classList.remove("visible");
+    this.readingEmpty.style.display = "";
+    this.statTerms.textContent  = "0";
+    this.statClust.textContent  = "0";
+    const btn = this.castBtn;
+    btn.textContent = "4 terms to cast";
+    btn.disabled = true;
+    btn.classList.remove("ready");
+    this._renderHistory();
+    this.inputEl.focus();
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const app = new LexiconApp();
+  document.getElementById("speak-input").focus();
+});
+</script>
+</body>
+</html>
