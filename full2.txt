@@ -318,7 +318,7 @@ class LexiconRenderer {
   cast(engine, anchor = null) {
     this.castCount++;
     const N = this.castCount;
-    const seed = "C" + N + "_" + engine.totalTokens + "_" + engine.nodeCount + "_" + Date.now();
+    const seed = `C${N}_${engine.documents}_${engine.totalTokens}_${engine.nodeCount}_${anchor || ""}`;
 
     const ranked = engine.textRank();
     if (ranked.length < 3) return null;
