@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { SemanticEngine } from '../engine/nlp';
-import { Reading } from '../types';
+
 
 export class LexiconViz {
   private container: HTMLElement;
@@ -61,7 +61,6 @@ export class LexiconViz {
 
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
-    const sizes = new Float32Array(count);
 
     words.forEach((word, i) => {
         const node = engine.graph.get(word)!;

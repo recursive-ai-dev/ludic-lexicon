@@ -1,4 +1,4 @@
-import { Reading, Node } from '../types';
+import { Reading } from '../types';
 import { SemanticEngine } from './nlp';
 
 const pick = (arr: string[], seed: string) => {
@@ -19,13 +19,14 @@ export class LexiconRenderer {
 
   private formulas = [
     (a: string, b: string, s: string) => `${a} ${pick(this.verbs, s + "v0")} ${pick(this.preps, s + "p0")} ${b}`,
-    (a: string, b: string, s: string) => `the ${a} of ${b}`,
+    (a: string, b: string, s: string) => `the ${a} of ${b} — ${pick(this.lore, s + "l1")}`,
     (a: string, b: string, s: string) => `${a} — ${pick(this.abstracts, s + "ab0")} — ${b}`,
     (a: string, b: string, s: string) => `${b} ${pick(this.temporals, s + "t0")} ${a} ${pick(this.verbs, s + "v1")}`,
     (a: string, b: string, s: string) => `what ${a} ${pick(this.verbs, s + "v2")}: ${b}`,
     (a: string, b: string, s: string) => `${pick(this.sounds, s + "sn0")} — ${a} ${pick(this.preps, s + "p1")} ${b}`,
     (a: string, b: string, s: string) => `${a} ${pick(this.sensations, s + "se0")}, ${b} ${pick(this.verbs, s + "v3")}`,
     (a: string, b: string, s: string) => `${b} and ${a} ${pick(this.verbs, s + "v4")}`,
+    (a: string, b: string, s: string) => `${a} ${pick(this.verbs, s + "v0")} ${pick(this.lore, s + "l0")} ${b}`,
   ];
 
   cast(engine: SemanticEngine, anchor: string | null = null): Reading | null {
@@ -47,7 +48,7 @@ export class LexiconRenderer {
     const T = (i: number) => pool[i % Math.max(1, pool.length)] || axis;
 
     const sign = this._buildSign(axis, bridge, seed);
-    const body = this._buildBody(ranked, clusters, axis, bridge, outlier, T, seed, engine.nodeCount);
+    const body = this._buildBody(clusters, axis, bridge, outlier, T, seed, engine.nodeCount);
 
     const threadPrefix = pick(["The thread", "A current", "The resonance", "Spectral lattice"], seed + "tp");
     const thread = `${threadPrefix} ${pick(this.verbs, seed + "tv")} through ${outlier}`;
@@ -78,7 +79,7 @@ export class LexiconRenderer {
     return pick(forms, seed + "sign").toUpperCase();
   }
 
-  private _buildBody(ranked: any[], clusters: string[][], axis: string, bridge: string, outlier: string, T: (i: number) => string, seed: string, nodeCount: number): string[] {
+  private _buildBody(clusters: string[][], axis: string, bridge: string, outlier: string, T: (i: number) => string, seed: string, nodeCount: number): string[] {
     const lines = [];
     if (nodeCount < 8) {
         lines.push(this._formula(0, axis, bridge, seed + "L0"));

@@ -1,4 +1,4 @@
-import { Node, NLPLevel, AppConfig } from '../types';
+import { Node, AppConfig } from '../types';
 
 export class SemanticEngine {
   graph: Map<string, Node> = new Map();
