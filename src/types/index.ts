@@ -7,6 +7,7 @@ export interface Node {
   rank?: number;
   hitsHub?: number;
   hitsAuthority?: number;
+  edgeSum?: number;
 }
 
 export interface Reading {
