@@ -104,8 +104,4 @@ export class LexiconViz {
     this.renderer.render(this.scene, this.camera);
   }
 
-  dispose() {
-    if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
-    this.renderer.dispose();
-  }
 }
