@@ -12,6 +12,10 @@ export class LexiconViz {
   private nodeMaterial: THREE.PointsMaterial;
   private nodeGeometry: THREE.BufferGeometry;
   private animationFrameId: number | null = null;
+  private positionCache = new Map<string, {x: number, y: number}>();
+  private accentColor = new THREE.Color(0x8a7ab0);
+  private dimColor = new THREE.Color(0x45455a);
+  private tempColor = new THREE.Color();
 
   constructor(containerId: string) {
     this.container = document.getElementById(containerId) || document.body;
@@ -65,18 +69,22 @@ export class LexiconViz {
     words.forEach((word, i) => {
         const node = engine.graph.get(word)!;
 
-        // Use a stable hash for positions
-        const hx = this.stableHash(word + 'x') % 200 - 100;
-        const hy = this.stableHash(word + 'y') % 200 - 100;
+        let pos = this.positionCache.get(word);
+        if (!pos) {
+            // Use a stable hash for positions
+            const hx = this.stableHash(word + 'x') % 200 - 100;
+            const hy = this.stableHash(word + 'y') % 200 - 100;
+            pos = { x: hx, y: hy };
+            this.positionCache.set(word, pos);
+        }
 
-        positions[i * 3] = hx;
-        positions[i * 3 + 1] = hy;
+        positions[i * 3] = pos.x;
+        positions[i * 3 + 1] = pos.y;
         positions[i * 3 + 2] = 0;
 
         const rank = node.rank || 0;
-        const accentColor = new THREE.Color(0x8a7ab0);
-        const dimColor = new THREE.Color(0x45455a);
-        const finalColor = dimColor.clone().lerp(accentColor, Math.min(1, rank * 10));
+        this.tempColor.copy(this.dimColor).lerp(this.accentColor, Math.min(1, rank * 10));
+        const finalColor = this.tempColor;
 
         colors[i * 3] = finalColor.r;
         colors[i * 3 + 1] = finalColor.g;

@@ -82,14 +82,4 @@ export class LexiconDB {
       request.onerror = () => reject(request.error);
     });
   }
-
-  async clearAll(): Promise<void> {
-      if (!this.db) return;
-      return new Promise((resolve, reject) => {
-          const tx = this.db!.transaction(['readings', 'config'], 'readwrite');
-          tx.objectStore('readings').clear();
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error);
-      });
-  }
 }

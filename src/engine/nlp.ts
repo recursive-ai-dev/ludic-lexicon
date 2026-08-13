@@ -85,6 +85,14 @@ export class SemanticEngine {
     let ranks = new Map<string, number>();
     words.forEach(w => ranks.set(w, 1 / n));
 
+    // Precompute edge sums to avoid recalculating in inner loop
+    for (const w of words) {
+      const node = this.graph.get(w)!;
+      let edgeSum = 0;
+      for (const [_, wgt] of node.neighbors) edgeSum += wgt;
+      node.edgeSum = edgeSum;
+    }
+
     for (let i = 0; i < iters; i++) {
       const nextRanks = new Map<string, number>();
       for (const w of words) {
@@ -93,9 +101,7 @@ export class SemanticEngine {
         for (const [neighbor, weight] of node.neighbors) {
           const neighborNode = this.graph.get(neighbor);
           if (!neighborNode) continue;
-          let neighborEdgeSum = 0;
-          for (const [_, wgt] of neighborNode.neighbors) neighborEdgeSum += wgt;
-          sum += (weight * (ranks.get(neighbor) || 0)) / (neighborEdgeSum || 1);
+          sum += (weight * (ranks.get(neighbor) || 0)) / (neighborNode.edgeSum || 1);
         }
         nextRanks.set(w, (1 - d) / n + d * sum);
       }
