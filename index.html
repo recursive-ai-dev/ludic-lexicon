@@ -916,11 +916,40 @@ class LexiconRenderer {
 function buildSigil(ranked, clusters, engine) {
   const SIZE = 160, cx = 80, cy = 80, R = 50;
   const n = Math.min(clusters.length, 6);
-  let svg = `<circle cx="${cx}" cy="${cy}" r="${SIZE/2 - 6}" fill="none" stroke="#8a7ab0" stroke-width="0.3" opacity="0.1"/>`;
+
+  const frag = document.createDocumentFragment();
+  const ns = "http://www.w3.org/2000/svg";
+
+  const createCircle = (cx, cy, r, fill, stroke, strokeWidth, opacity) => {
+    const c = document.createElementNS(ns, "circle");
+    c.setAttribute("cx", cx);
+    c.setAttribute("cy", cy);
+    c.setAttribute("r", r);
+    if (fill) c.setAttribute("fill", fill);
+    if (stroke) c.setAttribute("stroke", stroke);
+    if (strokeWidth) c.setAttribute("stroke-width", strokeWidth);
+    if (opacity) c.setAttribute("opacity", opacity);
+    return c;
+  };
+
+  const createLine = (x1, y1, x2, y2, stroke, strokeWidth, opacity, strokeDasharray) => {
+    const l = document.createElementNS(ns, "line");
+    l.setAttribute("x1", x1);
+    l.setAttribute("y1", y1);
+    l.setAttribute("x2", x2);
+    l.setAttribute("y2", y2);
+    if (stroke) l.setAttribute("stroke", stroke);
+    if (strokeWidth) l.setAttribute("stroke-width", strokeWidth);
+    if (opacity) l.setAttribute("opacity", opacity);
+    if (strokeDasharray) l.setAttribute("stroke-dasharray", strokeDasharray);
+    return l;
+  };
+
+  frag.appendChild(createCircle(cx, cy, SIZE/2 - 6, "none", "#8a7ab0", "0.3", "0.1"));
 
   if (n === 0) {
-    svg += `<circle cx="${cx}" cy="${cy}" r="3" fill="#8a7ab0" opacity="0.5"/>`;
-    return svg;
+    frag.appendChild(createCircle(cx, cy, 3, "#8a7ab0", null, null, "0.5"));
+    return frag;
   }
 
   const pts = clusters.slice(0, n).map((cluster, i) => {
@@ -938,22 +967,27 @@ function buildSigil(ranked, clusters, engine) {
       const draw = dist === 1 || wrap || sim > 0.05;
       if (draw) {
         const op = (dist === 1 || wrap) ? 0.13 : Math.min(0.08, sim * 0.4);
-        svg += `<line x1="${pts[i].x.toFixed(1)}" y1="${pts[i].y.toFixed(1)}" x2="${pts[j].x.toFixed(1)}" y2="${pts[j].y.toFixed(1)}" stroke="#8a7ab0" stroke-width="0.5" opacity="${op.toFixed(2)}" stroke-dasharray="2,5"/>`;
+        frag.appendChild(createLine(
+          pts[i].x.toFixed(1), pts[i].y.toFixed(1),
+          pts[j].x.toFixed(1), pts[j].y.toFixed(1),
+          "#8a7ab0", "0.5", op.toFixed(2), "2,5"
+        ));
       }
     }
   }
 
   // Radials and Nodes
   for (const pt of pts) {
-    svg += `<line x1="${cx}" y1="${cy}" x2="${pt.x.toFixed(1)}" y2="${pt.y.toFixed(1)}" stroke="#8a7ab0" stroke-width="0.4" opacity="0.18"/>`;
+    frag.appendChild(createLine(cx, cy, pt.x.toFixed(1), pt.y.toFixed(1), "#8a7ab0", "0.4", "0.18"));
     const nodeR = clamp(2.5 + pt.cluster.length * 0.55, 2.5, 8);
-    svg += `<circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="${nodeR.toFixed(1)}" fill="none" stroke="#8a7ab0" stroke-width="0.75" opacity="0.4"/>`;
-    svg += `<circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="1.2" fill="#8a7ab0" opacity="0.55"/>`;
+    frag.appendChild(createCircle(pt.x.toFixed(1), pt.y.toFixed(1), nodeR.toFixed(1), "none", "#8a7ab0", "0.75", "0.4"));
+    frag.appendChild(createCircle(pt.x.toFixed(1), pt.y.toFixed(1), 1.2, "#8a7ab0", null, null, "0.55"));
   }
 
-  svg += `<circle cx="${cx}" cy="${cy}" r="4.5" fill="none" stroke="#8a7ab0" stroke-width="0.9" opacity="0.65"/>`;
-  svg += `<circle cx="${cx}" cy="${cy}" r="1.5" fill="#8a7ab0" opacity="0.85"/>`;
-  return svg;
+  frag.appendChild(createCircle(cx, cy, 4.5, "none", "#8a7ab0", "0.9", "0.65"));
+  frag.appendChild(createCircle(cx, cy, 1.5, "#8a7ab0", null, null, "0.85"));
+
+  return frag;
 }
 
 // ─── Animation Manager ────────────────────────────────────
@@ -1243,7 +1277,7 @@ class LexiconApp {
     document.getElementById("reading-seal").textContent   = reading.seal;
 
     const sigilSvg = document.getElementById("sigil-svg");
-    sigilSvg.innerHTML = buildSigil(reading.ranked, reading.clusters, this.engine);
+    sigilSvg.replaceChildren(buildSigil(reading.ranked, reading.clusters, this.engine));
 
     this.readingEmpty.style.display = "none";
     this.readingCard.classList.remove("visible");
