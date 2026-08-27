@@ -184,10 +184,16 @@ export class LexiconApp {
       history.reverse().forEach(reading => {
           const item = document.createElement('div');
           item.className = 'history-item';
-          item.innerHTML = `
-              <div class="h-meta">CAST ${reading.castNumber}</div>
-              <div class="h-sign">${reading.sign}</div>
-          `;
+          const metaDiv = document.createElement('div');
+          metaDiv.className = 'h-meta';
+          metaDiv.textContent = `CAST ${reading.castNumber}`;
+
+          const signDiv = document.createElement('div');
+          signDiv.className = 'h-sign';
+          signDiv.textContent = reading.sign;
+
+          item.appendChild(metaDiv);
+          item.appendChild(signDiv);
           item.addEventListener('click', () => {
               this.displayReading(reading);
               document.getElementById('history-sidebar')?.classList.add('collapsed');
