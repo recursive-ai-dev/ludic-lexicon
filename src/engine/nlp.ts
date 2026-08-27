@@ -114,6 +114,20 @@ export class SemanticEngine {
     }
   }
 
+  private _updateHitsScore(words: string[], targetProp: 'hitsAuthority' | 'hitsHub', sourceProp: 'hitsAuthority' | 'hitsHub') {
+    let norm = 0;
+    for (const w of words) {
+      const node = this.graph.get(w)!;
+      node[targetProp] = 0;
+      for (const [neighbor, weight] of node.neighbors) {
+          node[targetProp]! += (this.graph.get(neighbor)?.[sourceProp] || 0) * weight;
+      }
+      norm += node[targetProp]! ** 2;
+    }
+    norm = Math.sqrt(norm) || 1;
+    for (const w of words) this.graph.get(w)![targetProp]! /= norm;
+  }
+
   private _hits(iters: number) {
     const words = Array.from(this.graph.keys());
     for (const w of words) {
@@ -123,29 +137,8 @@ export class SemanticEngine {
     }
 
     for (let i = 0; i < iters; i++) {
-      let normA = 0;
-      for (const w of words) {
-        const node = this.graph.get(w)!;
-        node.hitsAuthority = 0;
-        for (const [neighbor, weight] of node.neighbors) {
-            node.hitsAuthority += (this.graph.get(neighbor)?.hitsHub || 0) * weight;
-        }
-        normA += node.hitsAuthority ** 2;
-      }
-      normA = Math.sqrt(normA) || 1;
-      for (const w of words) this.graph.get(w)!.hitsAuthority! /= normA;
-
-      let normH = 0;
-      for (const w of words) {
-        const node = this.graph.get(w)!;
-        node.hitsHub = 0;
-        for (const [neighbor, weight] of node.neighbors) {
-            node.hitsHub += (this.graph.get(neighbor)?.hitsAuthority || 0) * weight;
-        }
-        normH += node.hitsHub ** 2;
-      }
-      normH = Math.sqrt(normH) || 1;
-      for (const w of words) this.graph.get(w)!.hitsHub! /= normH;
+      this._updateHitsScore(words, 'hitsAuthority', 'hitsHub');
+      this._updateHitsScore(words, 'hitsHub', 'hitsAuthority');
     }
   }
 
