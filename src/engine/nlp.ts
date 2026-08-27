@@ -1,5 +1,8 @@
 import { Node, AppConfig } from '../types';
 
+const NON_ALPHA_REGEX = /[^a-z\s]/g;
+const WHITESPACE_REGEX = /\s+/;
+
 export class SemanticEngine {
   graph: Map<string, Node> = new Map();
   totalDocs: number = 0;
@@ -11,8 +14,8 @@ export class SemanticEngine {
 
   tokenize(text: string): string[] {
     return text.toLowerCase()
-      .replace(/[^a-z\s]/g, ' ')
-      .split(/\s+/)
+      .replace(NON_ALPHA_REGEX, ' ')
+      .split(WHITESPACE_REGEX)
       .filter(w => w.length > 2 && !this.config.blacklist.has(w));
   }
 
