@@ -157,7 +157,9 @@ export class SemanticEngine {
 
   private _simpleClustering(limit: number): string[][] {
     const parent = new Map<string, string>();
-    this.graph.forEach((_, w) => parent.set(w, w));
+    for (const w of this.graph.keys()) {
+        parent.set(w, w);
+    }
     const find = (i: string): string => {
         if (parent.get(i) === i) return i;
         const r = find(parent.get(i)!);
@@ -181,11 +183,11 @@ export class SemanticEngine {
     edges.filter(e => e.w >= threshold).forEach(e => union(e.u, e.v));
 
     const groups = new Map<string, string[]>();
-    this.graph.forEach((_, w) => {
+    for (const w of this.graph.keys()) {
         const root = find(w);
         if (!groups.has(root)) groups.set(root, []);
         groups.get(root)!.push(w);
-    });
+    }
     return Array.from(groups.values()).sort((a,b) => b.length - a.length).slice(0, limit);
   }
 
