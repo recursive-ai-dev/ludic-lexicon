@@ -1,9 +1,16 @@
 import { Reading } from '../types';
 import { SemanticEngine } from './nlp';
 
+const hashCache = new Map<string, number>();
+
 const pick = (arr: string[], seed: string) => {
-    let hash = 0;
-    for (let i = 0; i < seed.length; i++) hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+    let hash = hashCache.get(seed);
+    if (hash === undefined) {
+        hash = 0;
+        for (let i = 0; i < seed.length; i++) hash = (Math.imul(31, hash) + seed.charCodeAt(i)) | 0;
+        if (hashCache.size >= 10000) hashCache.clear();
+        hashCache.set(seed, hash);
+    }
     return arr[Math.abs(hash) % arr.length];
 };
 
