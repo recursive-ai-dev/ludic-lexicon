@@ -50,4 +50,24 @@ describe('SemanticEngine', () => {
       expect(engine.tokenize('123!@#')).toEqual([]);
     });
   });
+
+  describe('processNLP', () => {
+    it('should handle an empty graph gracefully for fragmentary level', () => {
+      const config = { ...defaultConfig, nlpLevel: 'fragmentary' as const };
+      const engine = new SemanticEngine(config);
+      expect(() => engine.processNLP()).not.toThrow();
+    });
+
+    it('should handle an empty graph gracefully for standard level', () => {
+      const config = { ...defaultConfig, nlpLevel: 'standard' as const };
+      const engine = new SemanticEngine(config);
+      expect(() => engine.processNLP()).not.toThrow();
+    });
+
+    it('should handle an empty graph gracefully for dense level', () => {
+      const config = { ...defaultConfig, nlpLevel: 'dense' as const };
+      const engine = new SemanticEngine(config);
+      expect(() => engine.processNLP()).not.toThrow();
+    });
+  });
 });
