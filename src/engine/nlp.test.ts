@@ -50,4 +50,47 @@ describe('SemanticEngine', () => {
       expect(engine.tokenize('123!@#')).toEqual([]);
     });
   });
+
+  describe('addText', () => {
+    it('should return early if text has no tokens', () => {
+      const engine = new SemanticEngine(defaultConfig);
+      engine.addText('a ab');
+      expect(engine.totalDocs).toBe(0);
+      expect(engine.graph.size).toBe(0);
+    });
+
+    it('should increment totalDocs and populate graph node frequency', () => {
+      const engine = new SemanticEngine(defaultConfig);
+      engine.addText('hello world hello');
+      expect(engine.totalDocs).toBe(1);
+      expect(engine.graph.size).toBe(2);
+      expect(engine.graph.get('hello')?.frequency).toBe(2);
+      expect(engine.graph.get('world')?.frequency).toBe(1);
+    });
+
+    it('should correctly populate node neighbors based on windowSize', () => {
+      const engine = new SemanticEngine(defaultConfig);
+      engine.addText('first second third fourth fifth');
+
+      const nodeOne = engine.graph.get('first');
+      expect(nodeOne).toBeDefined();
+      expect(nodeOne?.neighbors.has('second')).toBe(true);
+      expect(nodeOne?.neighbors.has('third')).toBe(true);
+      // distance from 'one' to 'two' is 1, weight is 1/1 = 1
+      expect(nodeOne?.neighbors.get('second')).toBe(1);
+      // distance from 'one' to 'three' is 2, weight is 1/2 = 0.5
+      expect(nodeOne?.neighbors.get('third')).toBe(0.5);
+    });
+
+    it('should cumulatively update totalDocs and node frequency for multiple texts', () => {
+      const engine = new SemanticEngine(defaultConfig);
+      engine.addText('hello world');
+      engine.addText('hello again');
+      expect(engine.totalDocs).toBe(2);
+      expect(engine.graph.size).toBe(3);
+      expect(engine.graph.get('hello')?.frequency).toBe(2);
+      expect(engine.graph.get('world')?.frequency).toBe(1);
+      expect(engine.graph.get('again')?.frequency).toBe(1);
+    });
+  });
 });
