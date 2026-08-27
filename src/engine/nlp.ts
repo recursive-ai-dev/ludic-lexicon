@@ -1,5 +1,8 @@
 import { Node, AppConfig } from '../types';
 
+const NON_ALPHA_REGEX = /[^a-z\s]/g;
+const WHITESPACE_REGEX = /\s+/;
+
 export class SemanticEngine {
   graph: Map<string, Node> = new Map();
   totalDocs: number = 0;
@@ -11,8 +14,8 @@ export class SemanticEngine {
 
   tokenize(text: string): string[] {
     return text.toLowerCase()
-      .replace(/[^a-z\s]/g, ' ')
-      .split(/\s+/)
+      .replace(NON_ALPHA_REGEX, ' ')
+      .split(WHITESPACE_REGEX)
       .filter(w => w.length > 2 && !this.config.blacklist.has(w));
   }
 
@@ -56,7 +59,7 @@ export class SemanticEngine {
   }
 
   private _updateIDF() {
-    for (const [_, node] of this.graph) {
+    for (const node of this.graph.values()) {
       node.idf = Math.log(this.totalDocs / (1 + node.frequency)) + 1;
     }
   }
@@ -89,7 +92,7 @@ export class SemanticEngine {
     for (const w of words) {
       const node = this.graph.get(w)!;
       let edgeSum = 0;
-      for (const [_, wgt] of node.neighbors) edgeSum += wgt;
+      for (const wgt of node.neighbors.values()) edgeSum += wgt;
       node.edgeSum = edgeSum;
     }
 
@@ -114,6 +117,20 @@ export class SemanticEngine {
     }
   }
 
+  private _updateHitsScore(words: string[], targetProp: 'hitsAuthority' | 'hitsHub', sourceProp: 'hitsAuthority' | 'hitsHub') {
+    let norm = 0;
+    for (const w of words) {
+      const node = this.graph.get(w)!;
+      node[targetProp] = 0;
+      for (const [neighbor, weight] of node.neighbors) {
+          node[targetProp]! += (this.graph.get(neighbor)?.[sourceProp] || 0) * weight;
+      }
+      norm += node[targetProp]! ** 2;
+    }
+    norm = Math.sqrt(norm) || 1;
+    for (const w of words) this.graph.get(w)![targetProp]! /= norm;
+  }
+
   private _hits(iters: number) {
     const words = Array.from(this.graph.keys());
     for (const w of words) {
@@ -123,29 +140,8 @@ export class SemanticEngine {
     }
 
     for (let i = 0; i < iters; i++) {
-      let normA = 0;
-      for (const w of words) {
-        const node = this.graph.get(w)!;
-        node.hitsAuthority = 0;
-        for (const [neighbor, weight] of node.neighbors) {
-            node.hitsAuthority += (this.graph.get(neighbor)?.hitsHub || 0) * weight;
-        }
-        normA += node.hitsAuthority ** 2;
-      }
-      normA = Math.sqrt(normA) || 1;
-      for (const w of words) this.graph.get(w)!.hitsAuthority! /= normA;
-
-      let normH = 0;
-      for (const w of words) {
-        const node = this.graph.get(w)!;
-        node.hitsHub = 0;
-        for (const [neighbor, weight] of node.neighbors) {
-            node.hitsHub += (this.graph.get(neighbor)?.hitsAuthority || 0) * weight;
-        }
-        normH += node.hitsHub ** 2;
-      }
-      normH = Math.sqrt(normH) || 1;
-      for (const w of words) this.graph.get(w)!.hitsHub! /= normH;
+      this._updateHitsScore(words, 'hitsAuthority', 'hitsHub');
+      this._updateHitsScore(words, 'hitsHub', 'hitsAuthority');
     }
   }
 
@@ -157,7 +153,7 @@ export class SemanticEngine {
 
   private _simpleClustering(limit: number): string[][] {
     const parent = new Map<string, string>();
-    this.graph.forEach((_, w) => parent.set(w, w));
+    for (const w of this.graph.keys()) parent.set(w, w);
     const find = (i: string): string => {
         if (parent.get(i) === i) return i;
         const r = find(parent.get(i)!);
@@ -181,11 +177,11 @@ export class SemanticEngine {
     edges.filter(e => e.w >= threshold).forEach(e => union(e.u, e.v));
 
     const groups = new Map<string, string[]>();
-    this.graph.forEach((_, w) => {
+    for (const w of this.graph.keys()) {
         const root = find(w);
         if (!groups.has(root)) groups.set(root, []);
         groups.get(root)!.push(w);
-    });
+    }
     return Array.from(groups.values()).sort((a,b) => b.length - a.length).slice(0, limit);
   }
 

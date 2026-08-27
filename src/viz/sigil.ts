@@ -59,16 +59,14 @@ export class LexiconViz {
   }
 
   update(engine: SemanticEngine) {
-    const words = Array.from(engine.graph.keys());
-    const count = words.length;
+    const count = engine.graph.size;
     if (count === 0) return;
 
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
 
-    words.forEach((word, i) => {
-        const node = engine.graph.get(word)!;
-
+    let i = 0;
+    for (const [word, node] of engine.graph) {
         let pos = this.positionCache.get(word);
         if (!pos) {
             // Use a stable hash for positions
@@ -89,7 +87,9 @@ export class LexiconViz {
         colors[i * 3] = finalColor.r;
         colors[i * 3 + 1] = finalColor.g;
         colors[i * 3 + 2] = finalColor.b;
-    });
+
+        i++;
+    }
 
     this.nodeGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     this.nodeGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));

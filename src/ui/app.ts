@@ -40,55 +40,53 @@ export class LexiconApp {
   }
 
   private setupEventListeners() {
-    const input = document.getElementById('speak-input') as HTMLTextAreaElement;
-    input?.addEventListener('input', () => {
-        this.handleInput(input.value);
-        input.style.height = 'auto';
-        input.style.height = input.scrollHeight + 'px';
-    });
+    const listeners: Array<{ id: string, type: string, handler: (e: Event) => void }> = [
+        {
+            id: 'speak-input',
+            type: 'input',
+            handler: (e) => {
+                const input = e.target as HTMLTextAreaElement;
+                this.handleInput(input.value);
+                input.style.height = 'auto';
+                input.style.height = input.scrollHeight + 'px';
+            }
+        },
+        { id: 'cast-btn', type: 'click', handler: () => this.cast() },
+        {
+            id: 'settings-toggle',
+            type: 'click',
+            handler: () => {
+                document.getElementById('settings-sidebar')?.classList.toggle('collapsed');
+                document.getElementById('history-sidebar')?.classList.add('collapsed');
+            }
+        },
+        { id: 'settings-close', type: 'click', handler: () => document.getElementById('settings-sidebar')?.classList.add('collapsed') },
+        {
+            id: 'history-toggle',
+            type: 'click',
+            handler: () => {
+                document.getElementById('history-sidebar')?.classList.toggle('collapsed');
+                document.getElementById('settings-sidebar')?.classList.add('collapsed');
+            }
+        },
+        { id: 'history-close', type: 'click', handler: () => document.getElementById('history-sidebar')?.classList.add('collapsed') },
+        { id: 'save-settings', type: 'click', handler: () => this.saveSettings() },
+        { id: 'clear-btn', type: 'click', handler: () => this.clear() },
+        { id: 'copy-btn', type: 'click', handler: () => this.copyLastReading() },
+        {
+            id: 'damping-factor',
+            type: 'input',
+            handler: (e) => document.getElementById('damping-val')!.textContent = (e.target as HTMLInputElement).value
+        },
+        {
+            id: 'cluster-sensitivity',
+            type: 'input',
+            handler: (e) => document.getElementById('cluster-val')!.textContent = (e.target as HTMLInputElement).value
+        }
+    ];
 
-    const castBtn = document.getElementById('cast-btn') as HTMLButtonElement;
-    castBtn?.addEventListener('click', () => this.cast());
-
-    const settingsToggle = document.getElementById('settings-toggle');
-    settingsToggle?.addEventListener('click', () => {
-        document.getElementById('settings-sidebar')?.classList.toggle('collapsed');
-        document.getElementById('history-sidebar')?.classList.add('collapsed');
-    });
-
-    const settingsClose = document.getElementById('settings-close');
-    settingsClose?.addEventListener('click', () => {
-        document.getElementById('settings-sidebar')?.classList.add('collapsed');
-    });
-
-    const historyToggle = document.getElementById('history-toggle');
-    historyToggle?.addEventListener('click', () => {
-        document.getElementById('history-sidebar')?.classList.toggle('collapsed');
-        document.getElementById('settings-sidebar')?.classList.add('collapsed');
-    });
-
-    const historyClose = document.getElementById('history-close');
-    historyClose?.addEventListener('click', () => {
-        document.getElementById('history-sidebar')?.classList.add('collapsed');
-    });
-
-    const saveSettings = document.getElementById('save-settings');
-    saveSettings?.addEventListener('click', () => this.saveSettings());
-
-    const clearBtn = document.getElementById('clear-btn');
-    clearBtn?.addEventListener('click', () => this.clear());
-
-    const copyBtn = document.getElementById('copy-btn');
-    copyBtn?.addEventListener('click', () => this.copyLastReading());
-
-    const damping = document.getElementById('damping-factor') as HTMLInputElement;
-    damping?.addEventListener('input', () => {
-        document.getElementById('damping-val')!.textContent = damping.value;
-    });
-
-    const sensitivity = document.getElementById('cluster-sensitivity') as HTMLInputElement;
-    sensitivity?.addEventListener('input', () => {
-        document.getElementById('cluster-val')!.textContent = sensitivity.value;
+    listeners.forEach(({ id, type, handler }) => {
+        document.getElementById(id)?.addEventListener(type, handler);
     });
   }
 
@@ -186,10 +184,16 @@ export class LexiconApp {
       history.reverse().forEach(reading => {
           const item = document.createElement('div');
           item.className = 'history-item';
-          item.innerHTML = `
-              <div class="h-meta">CAST ${reading.castNumber}</div>
-              <div class="h-sign">${reading.sign}</div>
-          `;
+          const metaDiv = document.createElement('div');
+          metaDiv.className = 'h-meta';
+          metaDiv.textContent = `CAST ${reading.castNumber}`;
+
+          const signDiv = document.createElement('div');
+          signDiv.className = 'h-sign';
+          signDiv.textContent = reading.sign;
+
+          item.appendChild(metaDiv);
+          item.appendChild(signDiv);
           item.addEventListener('click', () => {
               this.displayReading(reading);
               document.getElementById('history-sidebar')?.classList.add('collapsed');
