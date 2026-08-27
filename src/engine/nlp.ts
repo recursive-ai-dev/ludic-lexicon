@@ -157,9 +157,7 @@ export class SemanticEngine {
 
   private _simpleClustering(limit: number): string[][] {
     const parent = new Map<string, string>();
-    for (const w of this.graph.keys()) {
-        parent.set(w, w);
-    }
+    for (const w of this.graph.keys()) parent.set(w, w);
     const find = (i: string): string => {
         if (parent.get(i) === i) return i;
         const r = find(parent.get(i)!);
