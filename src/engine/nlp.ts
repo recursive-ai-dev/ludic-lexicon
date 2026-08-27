@@ -56,7 +56,7 @@ export class SemanticEngine {
   }
 
   private _updateIDF() {
-    for (const [_, node] of this.graph) {
+    for (const node of this.graph.values()) {
       node.idf = Math.log(this.totalDocs / (1 + node.frequency)) + 1;
     }
   }
@@ -89,7 +89,7 @@ export class SemanticEngine {
     for (const w of words) {
       const node = this.graph.get(w)!;
       let edgeSum = 0;
-      for (const [_, wgt] of node.neighbors) edgeSum += wgt;
+      for (const wgt of node.neighbors.values()) edgeSum += wgt;
       node.edgeSum = edgeSum;
     }
 
